@@ -1,9 +1,9 @@
 Nyx
 ===
 
-Nyx project is aiming to provide concurrent Java collections (List, Set, Map) allocated outside heap (off-heap).  
+The work is in progress.  
 
 Versions
 ---
-The work is in progrees.
+The work is in progress.
 
