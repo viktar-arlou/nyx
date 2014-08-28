@@ -38,13 +38,10 @@ public class DbbList<E> implements List<E> {
 
 	private ObjectStreamClass osc;
 
-	public static int _1Mb = 1 << 20;
-	public static int _1Kb = 1 << 10;
-
-	private int bufferSize = _1Mb;
+	private int bufferSize = Constants._1Mb;
 
 	// reusable 64Kb bytearray stream for object serialization
-	private ByteArrayOutputStream baos = new ByteArrayOutputStream(_1Kb * 64);
+	private ByteArrayOutputStream baos = new ByteArrayOutputStream(Constants._1Kb * 64);
 
 	public DbbList(Class<E> type, int size, int bufferSize) {
 		super();

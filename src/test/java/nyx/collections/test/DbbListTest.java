@@ -3,6 +3,7 @@ package nyx.collections.test;
 import java.io.IOException;
 import java.util.List;
 
+import nyx.collections.Constants;
 import nyx.collections.DbbList;
 
 import org.junit.Assert;
@@ -17,7 +18,7 @@ public class DbbListTest {
 	public void testStringWithComparison() throws IOException {
 		int NUMBER_OF_ITEMS = 1000;
 		int LENGTH = 300;
-		List<String> list = new DbbList<>(String.class, NUMBER_OF_ITEMS, DbbList._1Mb * 10);
+		List<String> list = new DbbList<>(String.class, NUMBER_OF_ITEMS, Constants._1Mb * 10);
 		String[] values = new String[NUMBER_OF_ITEMS];
 		for (int i = 0; i < NUMBER_OF_ITEMS; i++) {
 			values[i] = i+":"+ randomAlphaNum(LENGTH-2);
@@ -34,7 +35,7 @@ public class DbbListTest {
 	public void test1GbCollection() throws IOException {
 		int NUMBER_OF_ITEMS = 10_000_000;
 		int LENGTH = 30;
-		List<char[]> list = new DbbList<>(char[].class, NUMBER_OF_ITEMS, DbbList._1Mb * 2000);
+		List<char[]> list = new DbbList<>(char[].class, NUMBER_OF_ITEMS, Constants._1Mb * 2000);
 		char[] value = new char[LENGTH];
 		int i = 0;
 		try {
@@ -57,7 +58,7 @@ public class DbbListTest {
 	@Test
 	public void testMemoryLeak() throws IOException {
 		for (int i = 0; i < 10; i++) {
-			List<char[]> list = new DbbList<>(char[].class, 1000, DbbList._1Mb * 100);
+			List<char[]> list = new DbbList<>(char[].class, 1000, Constants._1Mb * 100);
 			list.clear();
 		}
 	}
@@ -66,7 +67,7 @@ public class DbbListTest {
 	public void testSubList() {
 		int NUMBER_OF_ITEMS = 1000;
 		int LENGTH = 300;
-		List<String> list = new DbbList<>(String.class, NUMBER_OF_ITEMS, DbbList._1Mb * 10);
+		List<String> list = new DbbList<>(String.class, NUMBER_OF_ITEMS, Constants._1Mb * 10);
 		String[] values = new String[NUMBER_OF_ITEMS];
 		for (int i = 0; i < NUMBER_OF_ITEMS; i++) {
 			values[i] = randomAlphaNum(LENGTH);
