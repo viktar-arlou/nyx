@@ -63,10 +63,12 @@ public class ElasticStorage<E> implements Storage<E> {
 				long pos = coord.l1 + readed;
 				ByteBuffer bb = bufferForPosition(pos);
 				int offset = offsetForPosition(pos);
-				bb.position(offset);
-				int size = Math.min(bb.remaining(), result.length - readed);
-				bb.get(result, readed, size);
-				readed += size;
+				synchronized (bb) {
+					bb.position(offset);
+					int size = Math.min(bb.remaining(), result.length - readed);
+					bb.get(result, readed, size);
+					readed += size;
+				}
 			}
 			return result;
 		} finally {
