@@ -13,7 +13,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import nyx.collections.Constants;
-import nyx.collections.Make;
+import nyx.collections.Acme;
 
 /**
  * Elastic thread-safe storage for byte arrays. This is a base class which is
@@ -54,7 +54,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]> {
 		try {
 			lock.writeLock().lock();
 			int commited = 0;
-			long[] location = Make.along2();
+			long[] location = Acme.along2();
 			location[0] = this.cursor;
 			while (commited < addme.length) {
 				ByteBuffer cbuf = currentBuffer();
@@ -125,7 +125,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]> {
 	}
 
 	private ByteBuffer makeNewBuffer() {
-		return Make.dbbuffer(capacity);
+		return Acme.dbbuffer(capacity);
 	}
 
 	private int currentOffset() {

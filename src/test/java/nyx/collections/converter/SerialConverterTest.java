@@ -3,7 +3,7 @@ package nyx.collections.converter;
 import java.util.Arrays;
 
 import nyx.collections.Constants;
-import nyx.collections.Make;
+import nyx.collections.Acme;
 
 import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNot;
@@ -27,7 +27,7 @@ public class SerialConverterTest {
 	@Test
 	public void testCanExpand() {
 		SerialConverter converter = new SerialConverter();
-		byte[] ba = Make.abyte(Constants._1Mb);
+		byte[] ba = Acme.abyte(Constants._1Mb);
 		Arrays.fill(ba, (byte)0xab);
 		Assert.assertNotNull(converter.encode(ba));
 	}
