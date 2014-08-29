@@ -1,29 +1,26 @@
-package nyx.collections.storage;
+package nyx.collections;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class InfiniBuffer<E> implements Map<E, byte[]> {
+import nyx.collections.storage.Storage;
 
-	private Set<E> elements = new HashSet<>();
-	private Storage<E> storage;
+public class NyxMap<E> implements Map<E, byte[]> {
+
+	private Set<E> elements = Collections.newSetFromMap(new ConcurrentHashMap<E, Boolean>());
+	private Storage<E, byte[]> storage;
 	ReadWriteLock lock = new ReentrantReadWriteLock();
 
-	public InfiniBuffer() {}
+	public NyxMap() {}
 
 	@Override
 	public int size() {
-		try {
-			lock.readLock().lock();
-			return elements.size();
-		} finally {
-			lock.readLock().unlock();
-		}
+		return elements.size();
 	}
 
 	@Override
@@ -33,12 +30,7 @@ public class InfiniBuffer<E> implements Map<E, byte[]> {
 
 	@Override
 	public boolean containsKey(Object key) {
-		try {
-			lock.readLock().lock();
-			return elements.contains(key);
-		} finally {
-			lock.readLock().unlock();
-		}
+		return elements.contains(key);
 	}
 
 	@Override
@@ -50,7 +42,7 @@ public class InfiniBuffer<E> implements Map<E, byte[]> {
 	public byte[] get(Object key) {
 		try {
 			lock.readLock().lock();
-			return elements.contains(key) ? storage.retrieve(key) : null;
+			return elements.contains(key) ? storage.read(key) : null;
 		} finally {
 			lock.readLock().unlock();
 		}
@@ -61,7 +53,7 @@ public class InfiniBuffer<E> implements Map<E, byte[]> {
 		try {
 			lock.writeLock().lock();
 			byte[] prev = remove(key);
-			this.elements.add(storage.append(key, value));
+			this.elements.add(storage.create(key, value));
 			return prev;
 		} finally {
 			lock.writeLock().unlock();
@@ -72,7 +64,8 @@ public class InfiniBuffer<E> implements Map<E, byte[]> {
 	public byte[] remove(Object key) {
 		try {
 			lock.writeLock().lock();
-			return null;
+			this.elements.remove(key);
+			return storage.read(key);
 		} finally {
 			lock.writeLock().unlock();
 		}

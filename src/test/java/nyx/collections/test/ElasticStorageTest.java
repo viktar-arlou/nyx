@@ -14,9 +14,9 @@ public class ElasticStorageTest {
 	public void testAppendSmall() {
 		ElasticStorage<Integer> es = new ElasticStorage<>();
 		byte[] addme = new byte[1024];
-		for (int i = 1; i < 20; i++) {
+		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.append(i, addme);
+			es.create(i, addme);
 		}
 		es.clear();
 	}
@@ -25,9 +25,9 @@ public class ElasticStorageTest {
 	public void testAppendBig() {
 		ElasticStorage<Integer> es = new ElasticStorage<>();
 		byte[] addme = new byte[10 * 1024];
-		for (int i = 1; i < 20; i++) {
+		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.append(i, addme);
+			es.create(i, addme);
 		}
 		es.clear();
 	}
@@ -38,12 +38,12 @@ public class ElasticStorageTest {
 		byte[] addme = new byte[1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.append(i, addme);
+			es.create(i, addme);
 		}
 		// compare arrays
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			byte[] fromEs = es.retrieve(i);
+			byte[] fromEs = es.read(i);
 			assertArrayEquals(addme, fromEs);
 		}
 		es.clear();
@@ -55,12 +55,12 @@ public class ElasticStorageTest {
 		byte[] addme = new byte[10*1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.append(i, addme);
+			es.create(i, addme);
 		}
 		// compare arrays
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			byte[] fromEs = es.retrieve(i);
+			byte[] fromEs = es.read(i);
 			assertArrayEquals(addme, fromEs);
 		}
 		es.clear();

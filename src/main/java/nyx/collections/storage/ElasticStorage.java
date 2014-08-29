@@ -4,35 +4,58 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import nyx.collections.Constants;
+import nyx.collections.Make;
 
-public class ElasticStorage<E> implements Storage<E> {
+/**
+ * Elastic thread-safe storage for byte arrays. This is a base class which is
+ * used by Nyx collection classes. Byte arrays are stored in direct
+ * {@link java.nio.ByteBuffers} outside garbage-collected memory.
+ * 
+ * @author varlou@gmail.com
+ *
+ * @param <E>
+ *            key type
+ */
+public class ElasticStorage<E> implements Storage<E, byte[]> {
 
 	private List<ByteBuffer> dbbs = new ArrayList<>();
 	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	private long cursor = 0;
 	private int capacity = Constants._1Kb * 4; // default chunk size is 4Kb
-	Map<E, along2> coords = new HashMap<>();
+	private Map<E, long[]> elementsLocation = new HashMap<>();
 
+	/**
+	 * Creates instance with a default initial capacity (4Kb).
+	 * 
+	 * @param capacity
+	 */
 	public ElasticStorage() {}
 
+	/**
+	 * Creates instance with a given initial capacity.
+	 * 
+	 * @param capacity
+	 */
 	public ElasticStorage(int capacity) {
 		this.capacity = capacity;
 	}
 
 	@Override
-	public E append(E id, byte[] addme) {
+	public E create(E id, byte[] addme) {
 		try {
 			lock.writeLock().lock();
 			int commited = 0;
-			along2 coord = new along2();
-			coord.l1 = this.cursor;
+			long[] location = Make.along2();
+			location[0] = this.cursor;
 			while (commited < addme.length) {
 				ByteBuffer cbuf = currentBuffer();
 				cbuf.position(currentOffset());
@@ -42,8 +65,8 @@ public class ElasticStorage<E> implements Storage<E> {
 				this.cursor += size;
 				commited += size;
 			}
-			coord.l2 = this.cursor;
-			coords.put(id, coord);
+			location[1] = this.cursor;
+			elementsLocation.put(id, location);
 			return id;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
@@ -53,14 +76,15 @@ public class ElasticStorage<E> implements Storage<E> {
 	}
 
 	@Override
-	public byte[] retrieve(Object id) {
+	public byte[] read(Object id) {
 		try {
 			lock.readLock().lock();
-			along2 coord = coords.get(id);
-			byte[] result = new byte[(int) (coord.l2 - coord.l1)];
+			long[] location = elementsLocation.get(id);
+			assert location.length == 2;
+			byte[] result = new byte[(int) (location[1] - location[0])];
 			int readed = 0;
 			while (readed < result.length) {
-				long pos = coord.l1 + readed;
+				long pos = location[0] + readed;
 				ByteBuffer bb = bufferForPosition(pos);
 				int offset = offsetForPosition(pos);
 				synchronized (bb) {
@@ -75,11 +99,17 @@ public class ElasticStorage<E> implements Storage<E> {
 			lock.readLock().unlock();
 		}
 	}
-
+	
 	@Override
 	public void clear() {
-		for (ByteBuffer byteBuffer : dbbs)
-			freeDirectByteBuffer(byteBuffer);
+		try {
+			lock.writeLock().lock();
+			this.elementsLocation.clear();
+			for (ByteBuffer byteBuffer : dbbs)
+				freeDirectByteBuffer(byteBuffer);
+		} finally {
+			lock.writeLock().unlock();
+		}
 	}
 
 	private ByteBuffer currentBuffer() {
@@ -95,7 +125,7 @@ public class ElasticStorage<E> implements Storage<E> {
 	}
 
 	private ByteBuffer makeNewBuffer() {
-		return ByteBuffer.allocateDirect(capacity);
+		return Make.dbbuffer(capacity);
 	}
 
 	private int currentOffset() {
@@ -106,6 +136,12 @@ public class ElasticStorage<E> implements Storage<E> {
 		return (int) (pos % capacity);
 	}
 
+	/**
+	 * @param bb
+	 *            ByteBuffer to discard
+	 * @throws ReflectiveOperationException
+	 *             if no cleaner field found in current implementation of ByteBuffer (may happen in case of non-Sun/Oracle JDK)
+	 */
 	private void freeDirectByteBuffer(ByteBuffer bb) {
 		if (!bb.isDirect())
 			return;
@@ -122,4 +158,35 @@ public class ElasticStorage<E> implements Storage<E> {
 
 	}
 
+	/**
+	 * Deletes given object from the storage.
+	 * <p>
+	 * The memory region previously occupied by the object is not freed, so this
+	 * method rather forgets than deletes a given object.
+	 * 
+	 * @param id
+	 *            object key
+	 */
+	@Override
+	public byte[] delete(Object id) {
+		try {
+			lock.writeLock().lock();
+			byte[] res = read(id);
+			this.elementsLocation.remove(id);
+			return res;
+		} finally {
+			lock.writeLock().unlock();
+		}
+	}
+
+	@Override
+	public int size() {
+		return this.elementsLocation.size();
+	}
+	
+	@Override
+	public Set<E> keySet() {
+		return Collections.unmodifiableSet(this.elementsLocation.keySet());
+	}
+	
 }
