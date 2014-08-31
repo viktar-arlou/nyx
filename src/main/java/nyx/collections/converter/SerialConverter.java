@@ -15,7 +15,7 @@ import nyx.collections.Constants;
  */
 public class SerialConverter implements Converter<Object, byte[]> {
 
-	// Shared (one per thread) 16Kb byte array stream for object serialization.
+	// 16Kb byte array stream for object serialization. One instance per thread.
 	private static ThreadLocal<ByteArrayOutputStream> BAOS = new ThreadLocal<ByteArrayOutputStream>() {
 		protected ByteArrayOutputStream initialValue() {
 			return new ByteArrayOutputStream(Constants._1Kb * 16);
@@ -42,8 +42,7 @@ public class SerialConverter implements Converter<Object, byte[]> {
 	@Override
 	public Object decode(byte[] to) {
 		try {
-			ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(to));
-			return ois.readUnshared();
+			return new ObjectInputStream(new ByteArrayInputStream(to)).readUnshared();
 		} catch (ClassNotFoundException | IOException e) {
 			throw new RuntimeException(e);
 		}
