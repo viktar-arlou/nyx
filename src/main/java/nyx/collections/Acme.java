@@ -20,6 +20,8 @@ public class Acme {
 	public static byte[] abyte(int size) {return new byte[size];}
 	public static <K,V> Map<K, V> hashmap() {return new HashMap<>();}
 	public static <K> Set<K> hashset() {return new HashSet<>();}
+	public static <K> Set<K> hashset(int capacity) {return new HashSet<>(capacity);}
+	public static <K> Set<K> hashset(Set<K> set) {return new HashSet<>(set);}
 	public static <K> Set<K> chashset() {return Collections.newSetFromMap(new ConcurrentHashMap<K,Boolean>());} 
 	public static <K,V> Map<K, V> chashmap() {return new ConcurrentHashMap<>();}
 	public static <K> Set<K> umset(Set<K> set) {return Collections.unmodifiableSet(set);}

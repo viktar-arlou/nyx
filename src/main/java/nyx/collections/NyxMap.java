@@ -43,7 +43,9 @@ public class NyxMap<K, V> implements Map<K, V> {
 
 	@Override
 	public boolean containsValue(Object value) {
-		throw new UnsupportedOperationException();
+		for (Map.Entry<K, V> entry : entrySet())
+			if (entry.getValue().equals(value)) return true;
+		return false;
 	}
 
 	@Override
@@ -129,7 +131,19 @@ public class NyxMap<K, V> implements Map<K, V> {
 
 	@Override
 	public Set<Map.Entry<K, V>> entrySet() {
-		throw new UnsupportedOperationException();
+		Set<java.util.Map.Entry<K, V>> result = Acme.hashset(size());
+		for (K key : this.elements)	
+			result.add(new ANyxEntry(key) {
+				@Override public V getValue() {return NyxMap.this.get(getKey());
+			}});
+		return result;
+	}
+	
+	abstract class ANyxEntry implements Map.Entry<K,V> {
+		private K key;
+		public ANyxEntry(K key) {this.key = key;}
+		@Override public K getKey() {return key;}
+		@Override public V setValue(V value) {return put(key, value);}
 	}
 
 }
