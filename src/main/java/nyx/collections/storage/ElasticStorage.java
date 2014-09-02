@@ -1,5 +1,7 @@
 package nyx.collections.storage;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -25,9 +27,11 @@ import nyx.collections.Acme;
  * @param <E>
  *            key type
  */
-public class ElasticStorage<E> implements Storage<E, byte[]> {
+public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
-	private List<ByteBuffer> dbbs = new ArrayList<>();
+	private static final long serialVersionUID = 1408552328267845863L;
+	
+	private transient List<ByteBuffer> dbbs = new ArrayList<>();
 	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	private long cursor = 0;
 	private int capacity = Constants._1Kb * 4; // default chunk size is 4Kb
@@ -188,5 +192,33 @@ public class ElasticStorage<E> implements Storage<E, byte[]> {
 	public Set<E> keySet() {
 		return Collections.unmodifiableSet(this.elementsLocation.keySet());
 	}
+	
+	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+		out.writeObject(capacity);
+		out.writeObject(this.dbbs.size());
+		out.writeObject(elementsLocation);
+		for (ByteBuffer e : dbbs) {
+			byte[] buffer = new byte[e.limit()];
+			e.position(0);
+			e.get(buffer);
+			out.writeObject(buffer);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(java.io.ObjectInputStream in) throws ClassNotFoundException, IOException {
+		this.capacity = (Integer) in.readObject();
+		int n = (Integer)in.readObject();
+		this.dbbs = new ArrayList<>(n);
+		this.lock = new ReentrantReadWriteLock();
+		this.elementsLocation = (Map<E, long[]>) in.readObject();
+    	for (int i = 0 ; i < n; i++) {
+    		byte[] buffer = (byte[]) in.readObject();
+    		ByteBuffer bb = Acme.dbbuffer(capacity);
+    		bb.put(buffer);
+    		this.dbbs.add(bb);
+    	}
+    }
+
 	
 }

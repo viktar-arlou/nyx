@@ -1,5 +1,6 @@
 package nyx.collections;
 
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,12 +18,14 @@ import nyx.collections.storage.ElasticStorage;
 import nyx.collections.storage.Storage;
 
 /**
- * Java {@link java.util.List} collection backed by off-heap memory storage.
+ * Off-heap implementation of Java {@link java.util.List} collection.
  * 
  * @author varlou@gmail.com
  */
-public class NyxList<E> implements List<E> {
+public class NyxList<E extends Serializable> implements List<E>, Serializable {
 
+	private static final long serialVersionUID = 2004160303284077450L;
+	
 	private Storage<Integer, byte[]> storage;
 	private Converter<Object, byte[]> converter = new SerialConverter();
 
@@ -31,17 +34,27 @@ public class NyxList<E> implements List<E> {
 
 	ReadWriteLock lock = new ReentrantReadWriteLock();
 
+	/**
+	 * Creates NyxList with an initial capacity of 100 elements and 1Mb initial size
+	 */
+	public NyxList() {
+		this(100,Constants._1Mb);
+	}
+
 	public NyxList(int capacity, int memSize) {
 		this.storage = new ElasticStorage<>(memSize);
 		this.elements = new ArrayList<>(capacity);
 	}
 	
 	public NyxList(int capacity, int memSize, Converter<Object, byte[]> converter) {
-		this.storage = new ElasticStorage<>(memSize);
-		this.elements = new ArrayList<>(capacity);
+		this(capacity,memSize);
 		this.converter = converter;
 	}
-
+	
+	public NyxList(Collection<? extends E> copy) {
+		this(copy.size(), Constants._1Mb);
+		addAll(copy);
+	}
 
 	@Override
 	public int size() {
@@ -265,6 +278,34 @@ public class NyxList<E> implements List<E> {
 			lock.readLock().unlock();
 		}
 	}
+	
+	@Override
+    public int hashCode() {
+        int hashCode = 1;
+        for (E e : this)
+            hashCode = 31*hashCode + (e==null ? 0 : e.hashCode());
+        return hashCode;
+    }
+
+	@Override
+	public boolean equals(Object o) {
+        if (o == this)
+            return true;
+        if (!(o instanceof List))
+            return false;
+
+        ListIterator<E> e1 = listIterator();
+        @SuppressWarnings("rawtypes")
+		ListIterator e2 = ((List) o).listIterator();
+        while (e1.hasNext() && e2.hasNext()) {
+            E o1 = e1.next();
+            Object o2 = e2.next();
+            if (!(o1==null ? o2==null : o1.equals(o2)))
+                return false;
+        }
+        return !(e1.hasNext() || e2.hasNext());
+    }
+
 	
 	class ListItr implements ListIterator<E> {
 		

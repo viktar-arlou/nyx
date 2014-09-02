@@ -1,5 +1,6 @@
 package nyx.collections;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -17,7 +18,7 @@ import nyx.collections.storage.Storage;
  * 
  * @author varlou@gmail.com
  */
-public class NyxMap<K, V> implements Map<K, V> {
+public class NyxMap<K, V extends Serializable> implements Map<K, V> {
 
 	private Set<K> elements = Acme.chashset();
 	private ReadWriteLock lock = new ReentrantReadWriteLock();

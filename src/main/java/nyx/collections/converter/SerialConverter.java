@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 
 import nyx.collections.Constants;
 
@@ -13,10 +14,12 @@ import nyx.collections.Constants;
  * 
  * @author varlou@gmail.com	
  */
-public class SerialConverter implements Converter<Object, byte[]> {
+public class SerialConverter implements Converter<Object, byte[]>, Serializable {
 
+	private static final long serialVersionUID = 1100572136596789915L;
+	
 	// 16Kb byte array stream for object serialization. One instance per thread.
-	private static ThreadLocal<ByteArrayOutputStream> BAOS = new ThreadLocal<ByteArrayOutputStream>() {
+	private static transient ThreadLocal<ByteArrayOutputStream> BAOS = new ThreadLocal<ByteArrayOutputStream>() {
 		protected ByteArrayOutputStream initialValue() {
 			return new ByteArrayOutputStream(Constants._1Kb * 16);
 		};

@@ -1,6 +1,14 @@
 package nyx.collections.test;
 
+import static nyx.collections.test.StrTestUtils.fillWithRandomAlphaNum;
+import static nyx.collections.test.StrTestUtils.randomAlphaNum;
+import static nyx.collections.test.StrTestUtils.randomStr;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.List;
 
 import nyx.collections.Constants;
@@ -9,8 +17,6 @@ import nyx.collections.NyxList;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import static nyx.collections.test.StrTestUtils.*;
 
 public class NyxListTest {
 
@@ -80,5 +86,38 @@ public class NyxListTest {
 		}
 		list.clear();
 	}
+	
+	@Test
+	public void testSerializable() throws IOException, ClassNotFoundException {
+		int NUMBER_OF_ITEMS = 1000;
+		int LENGTH = 300;
+		List<String> list = new NyxList<>(NUMBER_OF_ITEMS, Constants._1Mb * 10);
+		String[] values = new String[NUMBER_OF_ITEMS];
+		for (int i = 0; i < NUMBER_OF_ITEMS; i++) {
+			values[i] = randomAlphaNum(LENGTH);
+			list.add(values[i]);
+		}
+		byte[] serialized = serialize(list);
+		Assert.assertTrue(serialized.length > 0);
+		list = (List<String>) deserialize(serialized);
+		int shift = 333;
+		List<String> sList = list.subList(shift, shift+100);
+		for (int i = 0; i < sList.size(); i++) {
+			Assert.assertEquals(i + " element is incorrect", values[i+shift], sList.get(i));
+		}
+		list.clear();
+	}
 
+	public static byte[] serialize(Object obj) throws IOException {
+	    ByteArrayOutputStream out = new ByteArrayOutputStream();
+	    ObjectOutputStream os = new ObjectOutputStream(out);
+	    os.writeObject(obj);
+	    return out.toByteArray();
+	}
+	public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
+	    ByteArrayInputStream in = new ByteArrayInputStream(data);
+	    ObjectInputStream is = new ObjectInputStream(in);
+	    return is.readObject();
+	}
+	
 }
