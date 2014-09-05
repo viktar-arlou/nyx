@@ -7,12 +7,16 @@ import java.util.Map;
 import nyx.collections.Acme;
 
 /**
- * Objects pool for Nyx Collection classes.
+ * Objects pool for Nyx Collection classes. This class is used by Nyx
+ * Collections classes to ensure that only one instance of a collection element
+ * created until it is recycled by the garbage collector.
  * 
  * @author varlou@gmail.com
  *
- * @param <K> key
- * @param <E> value
+ * @param <K>
+ *            key
+ * @param <E>
+ *            value
  */
 public class ObjectPool<K, E> {
 
