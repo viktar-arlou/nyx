@@ -11,7 +11,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.List;
 
-import nyx.collections.Constants;
+import nyx.collections.Const;
 import nyx.collections.NyxList;
 
 import org.junit.Assert;
@@ -24,7 +24,7 @@ public class NyxListTest {
 	public void testStringWithComparison() throws IOException {
 		int NUMBER_OF_ITEMS = 1000;
 		int LENGTH = 300;
-		List<String> list = new NyxList<>(NUMBER_OF_ITEMS, Constants._1Mb * 10);
+		List<String> list = new NyxList<>(NUMBER_OF_ITEMS, Const._1Mb * 10);
 		String[] values = new String[NUMBER_OF_ITEMS];
 		for (int i = 0; i < NUMBER_OF_ITEMS; i++) {
 			values[i] = i+":"+ randomStr(LENGTH-2, i % 2 == 0 ? "a" : "b");
@@ -41,7 +41,7 @@ public class NyxListTest {
 	public void test1GbCollection() throws IOException {
 		int NUMBER_OF_ITEMS = 10_000_000;
 		int LENGTH = 30;
-		List<char[]> list = new NyxList<>(NUMBER_OF_ITEMS, Constants._1Mb * 2000);
+		List<char[]> list = new NyxList<>(NUMBER_OF_ITEMS, Const._1Mb * 2000);
 		char[] value = new char[LENGTH];
 		int i = 0;
 		try {
@@ -64,7 +64,7 @@ public class NyxListTest {
 	@Test
 	public void testMemoryLeak() throws IOException {
 		for (int i = 0; i < 10; i++) {
-			List<char[]> list = new NyxList<>(1000, Constants._1Mb * 100);
+			List<char[]> list = new NyxList<>(1000, Const._1Mb * 100);
 			list.clear();
 		}
 	}
@@ -73,7 +73,7 @@ public class NyxListTest {
 	public void testSubList() {
 		int NUMBER_OF_ITEMS = 1000;
 		int LENGTH = 300;
-		List<String> list = new NyxList<>(NUMBER_OF_ITEMS, Constants._1Mb * 10);
+		List<String> list = new NyxList<>(NUMBER_OF_ITEMS, Const._1Mb * 10);
 		String[] values = new String[NUMBER_OF_ITEMS];
 		for (int i = 0; i < NUMBER_OF_ITEMS; i++) {
 			values[i] = randomAlphaNum(LENGTH);
@@ -91,7 +91,7 @@ public class NyxListTest {
 	public void testSerializable() throws IOException, ClassNotFoundException {
 		int NUMBER_OF_ITEMS = 1000;
 		int LENGTH = 300;
-		List<String> list = new NyxList<>(NUMBER_OF_ITEMS, Constants._1Mb * 10);
+		List<String> list = new NyxList<>(NUMBER_OF_ITEMS, Const._1Mb * 10);
 		String[] values = new String[NUMBER_OF_ITEMS];
 		for (int i = 0; i < NUMBER_OF_ITEMS; i++) {
 			values[i] = randomAlphaNum(LENGTH);
@@ -108,6 +108,15 @@ public class NyxListTest {
 		list.clear();
 	}
 
+	@Test
+	public void testNull() throws Exception {
+		List<String> list = new NyxList<>();
+		list.add("test1");
+		list.add(null);
+		list.add("test2");
+		Assert.assertTrue(list.contains(null));
+	}
+	
 	public static byte[] serialize(Object obj) throws IOException {
 	    ByteArrayOutputStream out = new ByteArrayOutputStream();
 	    ObjectOutputStream os = new ObjectOutputStream(out);

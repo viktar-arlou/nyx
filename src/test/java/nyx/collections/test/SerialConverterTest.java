@@ -2,7 +2,7 @@ package nyx.collections.test;
 
 import java.util.Arrays;
 
-import nyx.collections.Constants;
+import nyx.collections.Const;
 import nyx.collections.Acme;
 import nyx.collections.converter.SerialConverter;
 
@@ -28,7 +28,7 @@ public class SerialConverterTest {
 	@Test
 	public void testCanExpand() {
 		SerialConverter converter = new SerialConverter();
-		byte[] ba = Acme.abyte(Constants._1Mb);
+		byte[] ba = Acme.abyte(Const._1Mb);
 		Arrays.fill(ba, (byte)0xab);
 		Assert.assertNotNull(converter.encode(ba));
 	}

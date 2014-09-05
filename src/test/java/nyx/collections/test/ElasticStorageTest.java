@@ -24,7 +24,7 @@ public class ElasticStorageTest {
 	@Test
 	public void testAppendBig() {
 		ElasticStorage<Integer> es = new ElasticStorage<>();
-		byte[] addme = new byte[10 * 1024];
+		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
 			es.create(i, addme);
@@ -52,7 +52,7 @@ public class ElasticStorageTest {
 	@Test
 	public void testRetrieveBig() {
 		ElasticStorage<Integer> es = new ElasticStorage<>();
-		byte[] addme = new byte[10*1024];
+		byte[] addme = new byte[100*1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
 			es.create(i, addme);
@@ -61,6 +61,24 @@ public class ElasticStorageTest {
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
 			byte[] fromEs = es.read(i);
+			assertArrayEquals(addme, fromEs);
+		}
+		es.clear();
+	}
+	
+	@Test
+	public void testSerialization() throws Exception {
+		ElasticStorage<Integer> es = new ElasticStorage<>();
+		byte[] addme = new byte[100*1024];
+		for (int i = 0; i < 20; i++) {
+			Arrays.fill(addme, (byte) i);
+			es.create(i, addme);
+		}
+		ElasticStorage<Integer> es2 = (ElasticStorage<Integer>) NyxListTest.deserialize(NyxListTest.serialize(es));
+		// compare arrays
+		for (int i = 0; i < 20; i++) {
+			Arrays.fill(addme, (byte) i);
+			byte[] fromEs = es2.read(i);
 			assertArrayEquals(addme, fromEs);
 		}
 		es.clear();
