@@ -1,6 +1,5 @@
 package nyx.collections;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -18,14 +17,21 @@ import nyx.collections.storage.Storage;
  * 
  * @author varlou@gmail.com
  */
-public class NyxMap<K, V extends Serializable> implements Map<K, V> {
+public class NyxMap<K, V> implements Map<K, V> {
 
-	private Set<K> elements = Acme.chashset();
+	private final Set<K> elements;
 	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	private Storage<K, byte[]> storage;
 	private Converter<Object, byte[]> converter = new SerialConverter();
 
-	public NyxMap() {}
+	public NyxMap() {
+		this.elements =  Acme.chashset();
+	}
+	
+	public NyxMap(int capacity) {
+		if (capacity<1) throw new IllegalArgumentException();
+		this.elements = Acme.chashset(capacity);
+	}
 
 	@Override
 	public int size() {

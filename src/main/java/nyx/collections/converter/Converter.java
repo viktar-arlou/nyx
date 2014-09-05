@@ -1,9 +1,11 @@
 package nyx.collections.converter;
 
-public interface Converter<From,To> {
-
-	To encode(From from);
-	
-	From decode(To to);
-	
+/**
+ * Converter interface.
+ * 
+ * @author varlou@gmail.com
+ */
+public interface Converter<F,T> {
+	T encode(F from);
+	F decode(T to);
 }

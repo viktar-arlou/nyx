@@ -22,7 +22,8 @@ public class Acme {
 	public static <K> Set<K> hashset() {return new HashSet<>();}
 	public static <K> Set<K> hashset(int capacity) {return new HashSet<>(capacity);}
 	public static <K> Set<K> hashset(Set<K> set) {return new HashSet<>(set);}
-	public static <K> Set<K> chashset() {return Collections.newSetFromMap(new ConcurrentHashMap<K,Boolean>());} 
+	public static <K> Set<K> chashset() {return Collections.newSetFromMap(new ConcurrentHashMap<K,Boolean>());}
+	public static <K> Set<K> chashset(int capacity) {return Collections.newSetFromMap(new ConcurrentHashMap<K,Boolean>(capacity));}
 	public static <K,V> Map<K, V> chashmap() {return new ConcurrentHashMap<>();}
 	public static <K> Set<K> umset(Set<K> set) {return Collections.unmodifiableSet(set);}
 	

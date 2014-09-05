@@ -1,9 +1,10 @@
-package nyx.collections.converter;
+package nyx.collections.test;
 
 import java.util.Arrays;
 
 import nyx.collections.Constants;
 import nyx.collections.Acme;
+import nyx.collections.converter.SerialConverter;
 
 import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNot;

@@ -14,7 +14,7 @@ import nyx.collections.Constants;
  * 
  * @author varlou@gmail.com	
  */
-public class SerialConverter implements Converter<Object, byte[]>, Serializable {
+public class SerialConverter<E> implements Converter<E, byte[]>, Serializable {
 
 	private static final long serialVersionUID = 1100572136596789915L;
 	
@@ -24,9 +24,9 @@ public class SerialConverter implements Converter<Object, byte[]>, Serializable 
 			return new ByteArrayOutputStream(Constants._1Kb * 16);
 		};
 	};
-
+	
 	@Override
-	public byte[] encode(Object from) {
+	public byte[] encode(E from) {
 		ByteArrayOutputStream baos = BAOS.get();
 		synchronized (baos) {
 			try {
@@ -42,10 +42,11 @@ public class SerialConverter implements Converter<Object, byte[]>, Serializable 
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public Object decode(byte[] to) {
+	public E decode(byte[] to) {
 		try {
-			return new ObjectInputStream(new ByteArrayInputStream(to)).readUnshared();
+			return (E) new ObjectInputStream(new ByteArrayInputStream(to)).readUnshared();
 		} catch (ClassNotFoundException | IOException e) {
 			throw new RuntimeException(e);
 		}

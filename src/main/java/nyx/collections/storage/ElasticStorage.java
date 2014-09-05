@@ -45,11 +45,13 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	public ElasticStorage() {}
 
 	/**
-	 * Creates instance with a given initial capacity.
+	 * Creates instance with a given initial capacity in bytes.
 	 * 
-	 * @param capacity
+	 * @param capacity the capacity of this storage in bytes
+	 * @throws IllegalArgumentException if {@code capacity < 4096}
 	 */
 	public ElasticStorage(int capacity) {
+		if (capacity < Constants._1Kb * 4) throw new IllegalArgumentException();
 		this.capacity = capacity;
 	}
 

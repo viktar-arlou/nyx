@@ -1,4 +1,4 @@
-package nyx.collections;
+package nyx.collections.test;
 
 import java.util.Map;
 
