@@ -21,16 +21,15 @@ import nyx.collections.storage.Storage;
 public class NyxMap<K, V> implements Map<K, V> {
 
 	private final Set<K> elements;
-	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	private Storage<K, byte[]> storage;
 	private Converter<V, byte[]> converter = ConverterFactory.get();
 	
+	// main RW lock guarding all access to this Map
+	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	// counts update and delete operations
 	private volatile int modCount = 0;
 
-	public NyxMap() {
-		this.elements =  Acme.chashset();
-	}
+	public NyxMap() { this.elements =  Acme.chashset(); }
 	
 	public NyxMap(int capacity) {
 		if (capacity<1) throw new IllegalArgumentException();
@@ -80,31 +79,39 @@ public class NyxMap<K, V> implements Map<K, V> {
 
 	@Override
 	public V put(K key, V value) {
+		V prevValue = null;
 		try {
 			lock.writeLock().lock();
-			V prevValue = remove(key);
+			prevValue = remove(key);
 			storage.create(key, encode(value));
 			return prevValue;
 		} finally {
+			if (prevValue!=null) checkMods();
 			lock.writeLock().unlock();
 		}
 	}
 
 	@Override
 	public V remove(Object key) {
+		boolean delete = false;
 		try {
 			lock.writeLock().lock();
-			return key != null && elements.remove(key) ? decode(storage.delete(key)) : null;
+			delete = key != null && elements.remove(key);
+			return delete ? decode(storage.delete(key)) : null;
 		} finally {
+			if (delete) checkMods();
 			lock.writeLock().unlock();
 		}
 	}
 
+	/**
+	 * @see Map#putAll(Map)
+	 */
 	@Override
-	public void putAll(Map<? extends K, ? extends V> m) {
+	public void putAll(Map<? extends K, ? extends V> map) {
 		try {
 			lock.writeLock().lock();
-			for (Map.Entry<? extends K, ? extends V> e : m.entrySet())
+			for (Map.Entry<? extends K, ? extends V> e : map.entrySet())
 				put(e.getKey(), e.getValue());
 		} finally {
 			lock.writeLock().unlock();
@@ -112,9 +119,9 @@ public class NyxMap<K, V> implements Map<K, V> {
 	}
 	
 	/**
-	 * Checks the number of modifications and runs
-	 * {@link nyx.collectoins.storage.Storage#purge} when it is greater than 1/3
-	 * of this collection size.
+	 * Checks total number of modifications and executes
+	 * {@link nyx.collectoins.storage.Storage#purge} when it exceeds 1/3 of this
+	 * collection size.
 	 */
 	private void checkMods() {
 		if (modCount++ > size() / 3) {

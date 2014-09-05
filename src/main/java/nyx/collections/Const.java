@@ -8,7 +8,7 @@ public class Const {
 	public static int _1Kb = 1 << 10;
 
 	@SuppressWarnings("unchecked")
-	public static <E> E nil() {return (E) NULL.inst;}
+	public static <E> E nil() { return (E) NULL.inst; }
 	public static <E> E checkNull(E e) { return e!=null ? e : Const.<E>nil(); }
 
 	/**

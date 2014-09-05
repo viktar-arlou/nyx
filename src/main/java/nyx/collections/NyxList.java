@@ -36,7 +36,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	// counts update and delete operations
 	private volatile int modCount = 0;
 
-	// Main RW locks guarding all access
+	// main RW lock guarding all access
 	private transient ReadWriteLock lock = new ReentrantReadWriteLock();
 
 	/**
