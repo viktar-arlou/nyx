@@ -7,7 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-import nyx.collections.Constants;
+import nyx.collections.Const;
 
 /**
  * Implements Object to byte[] array converter based on standard Java serialization mechanism.
@@ -21,7 +21,7 @@ public class SerialConverter<E> implements Converter<E, byte[]>, Serializable {
 	// 16Kb byte array stream for object serialization. One instance per thread.
 	private static transient ThreadLocal<ByteArrayOutputStream> BAOS = new ThreadLocal<ByteArrayOutputStream>() {
 		protected ByteArrayOutputStream initialValue() {
-			return new ByteArrayOutputStream(Constants._1Kb * 16);
+			return new ByteArrayOutputStream(Const._1Kb * 16);
 		};
 	};
 	
