@@ -91,6 +91,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	public byte[] read(Object id) {
 		try {
 			lock.readLock().lock();
+			if (!elementsLocation.containsKey(id)) throw new IllegalArgumentException();
 			long[] location = elementsLocation.get(id);
 			assert location.length == 2;
 			byte[] result = new byte[(int) (location[1] - location[0])];
@@ -238,6 +239,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 			for (ByteBuffer oldBuffer : this.dbbs)
 				deallocDirectByteBuffer(oldBuffer);
 			// switch to the newly created Storage instance.
+			
 			this.dbbs = copy.dbbs;
 			this.elementsLocation = copy.elementsLocation;
 			this.cursor = copy.cursor;
@@ -248,7 +250,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
 	
 	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
-		out.writeObject(new Object[]{this.capacity,this.elementsLocation, this.cursor, this.dbbs.size()});
+		out.writeObject(new Object[]{ this.capacity,this.elementsLocation, this.cursor, this.dbbs.size() });
 		for (ByteBuffer byteBuffer : dbbs) {
 			byte[] toWrite = new byte[byteBuffer.limit()];
 			byteBuffer.position(0);
