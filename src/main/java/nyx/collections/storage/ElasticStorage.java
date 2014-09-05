@@ -6,16 +6,16 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import nyx.collections.Constants;
 import nyx.collections.Acme;
+import nyx.collections.Const;
 
 /**
  * Elastic thread-safe storage for byte arrays. This is a base class which is
@@ -30,11 +30,11 @@ import nyx.collections.Acme;
 public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
 	private static final long serialVersionUID = 1408552328267845863L;
-	
+
 	private transient List<ByteBuffer> dbbs = new ArrayList<>();
-	private ReadWriteLock lock = new ReentrantReadWriteLock();
+	private transient ReadWriteLock lock = new ReentrantReadWriteLock();
 	private long cursor = 0;
-	private int capacity = Constants._1Kb * 4; // default chunk size is 4Kb
+	private int capacity = Const._1Kb * 4; // default chunk size is 4Kb
 	private Map<E, long[]> elementsLocation = new HashMap<>();
 
 	/**
@@ -42,28 +42,34 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	 * 
 	 * @param capacity
 	 */
-	public ElasticStorage() {}
+	public ElasticStorage() {
+	}
 
 	/**
 	 * Creates instance with a given initial capacity in bytes.
 	 * 
-	 * @param capacity the capacity of this storage in bytes
-	 * @throws IllegalArgumentException if {@code capacity < 4096}
+	 * @param capacity
+	 *            the capacity of this storage in bytes
+	 * @throws IllegalArgumentException
+	 *             if {@code capacity < 4096}
 	 */
 	public ElasticStorage(int capacity) {
-		if (capacity < Constants._1Kb * 4) throw new IllegalArgumentException();
+		if (capacity < Const._1Kb * 4)
+			throw new IllegalArgumentException();
 		this.capacity = capacity;
 	}
 
 	@Override
 	public E create(E id, byte[] addme) {
+		if (elementsLocation.containsKey(id)) 
+			throw new IllegalArgumentException();
 		try {
 			lock.writeLock().lock();
 			int commited = 0;
 			long[] location = Acme.along2();
 			location[0] = this.cursor;
 			while (commited < addme.length) {
-				ByteBuffer cbuf = currentBuffer();
+				ByteBuffer cbuf = getBuffer();
 				cbuf.position(currentOffset());
 				int spaceLeft = capacity - cbuf.position();
 				int size = Math.min(spaceLeft, addme.length - commited);
@@ -105,20 +111,20 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 			lock.readLock().unlock();
 		}
 	}
-	
+
 	@Override
 	public void clear() {
 		try {
 			lock.writeLock().lock();
 			this.elementsLocation.clear();
 			for (ByteBuffer byteBuffer : dbbs)
-				freeDirectByteBuffer(byteBuffer);
+				deallocDirectByteBuffer(byteBuffer);
 		} finally {
 			lock.writeLock().unlock();
 		}
 	}
 
-	private ByteBuffer currentBuffer() {
+	private ByteBuffer getBuffer() {
 		return bufferForPosition(cursor);
 	}
 
@@ -146,9 +152,10 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	 * @param bb
 	 *            ByteBuffer to discard
 	 * @throws ReflectiveOperationException
-	 *             if no cleaner field found in current implementation of ByteBuffer (may happen in case of non-Sun/Oracle JDK)
+	 *             if no cleaner field found in current implementation of
+	 *             ByteBuffer (may happen in case of non-Sun/Oracle JDK)
 	 */
-	private void freeDirectByteBuffer(ByteBuffer bb) {
+	private void deallocDirectByteBuffer(ByteBuffer bb) {
 		if (!bb.isDirect())
 			return;
 		Field cleanerField;
@@ -156,9 +163,11 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 			cleanerField = bb.getClass().getDeclaredField("cleaner");
 			cleanerField.setAccessible(true);
 			Object cleaner = cleanerField.get(bb);
-			Method cleanMethod = cleaner.getClass().getMethod("clean", new Class[] {});
+			Method cleanMethod = cleaner.getClass().getMethod("clean",
+					new Class[] {});
 			cleanMethod.invoke(cleaner, new Object[] {});
-		} catch (ReflectiveOperationException | SecurityException | IllegalArgumentException e) {
+		} catch (ReflectiveOperationException | SecurityException
+				| IllegalArgumentException e) {
 			throw new RuntimeException(e);
 		}
 
@@ -167,11 +176,11 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	/**
 	 * Deletes given object from the storage.
 	 * <p>
-	 * The memory region previously occupied by the object is not freed, so this
-	 * method rather forgets than deletes a given object.
+	 * The memory occupied by the object is not actually freed, so this method
+	 * only <b>marks the object for deletion</b>.
 	 * 
 	 * @param id
-	 *            object key
+	 *            the id of the object to be removed
 	 */
 	@Override
 	public byte[] delete(Object id) {
@@ -189,38 +198,82 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	public int size() {
 		return this.elementsLocation.size();
 	}
-	
+
 	@Override
 	public Set<E> keySet() {
-		return Collections.unmodifiableSet(this.elementsLocation.keySet());
+		return Acme.umset(this.elementsLocation.keySet());
 	}
-	
-	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
-		out.writeObject(capacity);
-		out.writeObject(this.dbbs.size());
-		out.writeObject(elementsLocation);
-		for (ByteBuffer e : dbbs) {
-			byte[] buffer = new byte[e.limit()];
-			e.position(0);
-			e.get(buffer);
-			out.writeObject(buffer);
+
+	@Override
+	public byte[] update(E key, byte[] value) {
+		try {
+			lock.writeLock().lock();
+			byte[] old = delete(key);
+			create(key, value);
+			return old;
+		} finally {
+			lock.writeLock().unlock();
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	private void readObject(java.io.ObjectInputStream in) throws ClassNotFoundException, IOException {
-		this.capacity = (Integer) in.readObject();
-		int n = (Integer)in.readObject();
-		this.dbbs = new ArrayList<>(n);
-		this.lock = new ReentrantReadWriteLock();
-		this.elementsLocation = (Map<E, long[]>) in.readObject();
-    	for (int i = 0 ; i < n; i++) {
-    		byte[] buffer = (byte[]) in.readObject();
-    		ByteBuffer bb = Acme.dbbuffer(capacity);
-    		bb.put(buffer);
-    		this.dbbs.add(bb);
-    	}
-    }
+	/**
+	 * Removes all elements previously marked for deletion (by
+	 * {@link #delete(Object)} method) from this storage.
+	 * 
+	 * This is very basic implementation which needs to be improved in the new
+	 * versions of Nyx Collections. It simply copies all remaining elements into
+	 * new {@link ByteBuffer} and destroys old ones.
+	 */
+	@Override
+	public void purge() {
+		// Basic implementation - copies all remaining elements into new
+		// byte buffers and removes old ones. Doubles
+		try {
+			lock.writeLock().lock();
+			ElasticStorage<E> copy = new ElasticStorage<E>(this.capacity);
+			for (Entry<E, long[]> entry : elementsLocation.entrySet()) {
+				copy.create(entry.getKey(), read(entry.getKey()));
+			}
+			// deallocate off-heap memory
+			for (ByteBuffer oldBuffer : this.dbbs)
+				deallocDirectByteBuffer(oldBuffer);
+			// switch to the newly created Storage instance.
+			this.dbbs = copy.dbbs;
+			this.elementsLocation = copy.elementsLocation;
+			this.cursor = copy.cursor;
+		} finally {
+			lock.writeLock().unlock();
+		}
+	}
 
+	
+	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+		out.writeObject(new Object[]{this.capacity,this.elementsLocation, this.cursor, this.dbbs.size()});
+		for (ByteBuffer byteBuffer : dbbs) {
+			byte[] toWrite = new byte[byteBuffer.limit()];
+			byteBuffer.position(0);
+			byteBuffer.get(toWrite);
+			out.writeObject(toWrite);
+		}
+		out.flush();
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(java.io.ObjectInputStream in)
+			throws ClassNotFoundException, IOException {
+		Object[] fields = (Object[]) in.readObject();
+		this.capacity = (int) fields[0];
+		this.elementsLocation= (Map<E, long[]>) fields[1];
+		this.cursor = (long) fields[2];
+		int size = (int)fields[3];
+		this.dbbs = Acme.alist(size);
+		this.lock = new ReentrantReadWriteLock();
+		for (int i = 0; i < size; i++) {
+			byte[] toRead = (byte[])in.readObject();
+			ByteBuffer byteBuffer = Acme.dbbuffer(this.capacity);
+			byteBuffer.put(toRead);
+			this.dbbs.add(byteBuffer);
+		}
+	}
 	
 }
