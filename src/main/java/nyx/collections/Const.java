@@ -9,7 +9,7 @@ public class Const {
 
 	@SuppressWarnings("unchecked")
 	public static <E> E nil() { return (E) NULL.inst; }
-	public static <E> E checkNull(E e) { return e!=null ? e : Const.<E>nil(); }
+	public static <E> E maskNull(E e) { return e!=null ? e : Const.<E>nil(); }
 
 	/**
 	 * This class represents a <b>{@code null}</b> value for the use inside Nyx

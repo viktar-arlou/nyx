@@ -2,6 +2,7 @@ package nyx.collections;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -15,6 +16,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import nyx.collections.converter.Converter;
 import nyx.collections.converter.ConverterFactory;
+import nyx.collections.pool.ObjectPool;
 import nyx.collections.storage.ElasticStorage;
 import nyx.collections.storage.Storage;
 
@@ -38,6 +40,8 @@ public class NyxList<E> implements List<E>, Serializable {
 
 	// main RW lock guarding all access
 	private transient ReadWriteLock lock = new ReentrantReadWriteLock();
+	
+	private transient ObjectPool<Integer,E> objPool = new ObjectPool<>();
 
 	/**
 	 * Creates NyxList with an initial capacity of 16 elements and 4Kb.
@@ -135,6 +139,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public boolean add(E e) {
 		try {
 			lock.writeLock().lock();
+			objPool.pool(size, e);
 			this.storage.create(size, encode(e));
 			this.elements.add(size++);
 		} finally {
@@ -147,6 +152,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public void add(int index, E element) {
 		try {
 			lock.writeLock().lock();
+			objPool.pool(index, element);
 			this.storage.create(size, encode(element));
 			this.elements.add(index, size++);
 		} finally {
@@ -161,10 +167,11 @@ public class NyxList<E> implements List<E>, Serializable {
 			lock.writeLock().lock();
 			Iterator<Integer> iter = elements.iterator();
 			while (iter.hasNext()) {
-				Integer i = iter.next();
-				E nextElement = decode(this.storage.read(i));
+				Integer key = iter.next();
+				E nextElement = decode(this.storage.read(key));
 				if (nextElement == obj || nextElement.equals(obj)) {
 					iter.remove();
+					objPool.remove(key);
 					deleted = true;
 					break;
 				}
@@ -245,7 +252,8 @@ public class NyxList<E> implements List<E>, Serializable {
 
 	@Override
 	public E get(int index) {
-		return decode(storage.read(this.elements.get(index)));
+		E value = objPool.lookup(index);
+		return  value!=null ? value : objPool.pool(index,decode(storage.read(this.elements.get(index))));
 	}
 
 	private byte[] encode(E e) {
@@ -273,6 +281,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public E remove(int index) {
 		try {
 			lock.writeLock().lock();
+			objPool.remove(index);
 			return decode(this.storage.delete(this.elements.get(index)));
 		} finally {
 			checkMods();

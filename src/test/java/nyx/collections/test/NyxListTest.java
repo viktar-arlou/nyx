@@ -3,6 +3,7 @@ package nyx.collections.test;
 import static nyx.collections.test.StrTestUtils.fillWithRandomAlphaNum;
 import static nyx.collections.test.StrTestUtils.randomAlphaNum;
 import static nyx.collections.test.StrTestUtils.randomStr;
+import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -115,6 +116,17 @@ public class NyxListTest {
 		list.add(null);
 		list.add("test2");
 		Assert.assertTrue(list.contains(null));
+	}
+
+	@Test
+	public void testObjectPool() throws Exception {
+		List<String> list = new NyxList<>();
+		for (int i = 0; i < 1000; i++) {
+			list.add("test"+i);
+		}
+		for (int i = 0; i < 1000; i++) {
+			Assert.assertTrue(list.get(i)==list.get(i));
+		}
 	}
 	
 	public static byte[] serialize(Object obj) throws IOException {
