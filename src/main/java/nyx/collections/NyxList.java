@@ -1,5 +1,6 @@
 package nyx.collections;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -32,18 +33,22 @@ public class NyxList<E> implements List<E>, Serializable {
 	private List<Integer> elements;
 	private int size = 0;
 
-	ReadWriteLock lock = new ReentrantReadWriteLock();
+	// counts update and delete operations
+	private volatile int modCount = 0;
+
+	// Main RW locks guarding all access
+	private transient ReadWriteLock lock = new ReentrantReadWriteLock();
 
 	/**
-	 * Creates NyxList with an initial capacity of 100 elements and 1Mb initial
-	 * size
+	 * Creates NyxList with an initial capacity of 16 elements and 4Kb.
 	 */
 	public NyxList() {
-		this(100, Constants._1Mb);
+		this(16, Const._1Kb * 4);
 	}
 
 	public NyxList(int capacity, int memSize) {
-		if (capacity < 1) throw new IllegalArgumentException();
+		if (capacity < 1)
+			throw new IllegalArgumentException();
 		this.storage = new ElasticStorage<>(memSize);
 		this.elements = new ArrayList<>(capacity);
 	}
@@ -54,7 +59,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	}
 
 	public NyxList(Collection<? extends E> copy) {
-		this(copy.size(), Constants._1Mb);
+		this(copy.size(), Const._1Mb);
 		addAll(copy);
 	}
 
@@ -69,22 +74,24 @@ public class NyxList<E> implements List<E>, Serializable {
 	}
 
 	@Override
-	public boolean contains(Object o) {
+	public boolean contains(Object obj) {
 		Iterator<E> it = iterator();
-		while (it.hasNext())
-			if (it.next().equals(o))
+		while (it.hasNext()) {
+			E next = it.next();
+			if (next == obj || next.equals(obj))
 				return true;
+		}
 		return false;
 	}
 
 	@Override
 	public Iterator<E> iterator() {
 		return new Iterator<E>() {
-			private int iCursor = -1;
+			private int iCursor = 0;
 
 			@Override
 			public boolean hasNext() {
-				return iCursor < NyxList.this.elements.size();
+				return iCursor < NyxList.this.elements.size() - 1;
 			}
 
 			@Override
@@ -128,7 +135,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public boolean add(E e) {
 		try {
 			lock.writeLock().lock();
-			this.storage.create(size, this.converter.encode(e));
+			this.storage.create(size, encode(e));
 			this.elements.add(size++);
 		} finally {
 			lock.writeLock().unlock();
@@ -140,7 +147,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public void add(int index, E element) {
 		try {
 			lock.writeLock().lock();
-			this.storage.create(size, this.converter.encode(element));
+			this.storage.create(size, encode(element));
 			this.elements.add(index, size++);
 		} finally {
 			lock.writeLock().unlock();
@@ -148,20 +155,24 @@ public class NyxList<E> implements List<E>, Serializable {
 	}
 
 	@Override
-	public boolean remove(Object o) {
+	public boolean remove(Object obj) {
+		boolean deleted = false;
 		try {
 			lock.writeLock().lock();
-			boolean deleted = false;
 			Iterator<Integer> iter = elements.iterator();
 			while (iter.hasNext()) {
 				Integer i = iter.next();
-				if (this.storage.read(i).equals(o)) {
+				E nextElement = decode(this.storage.read(i));
+				if (nextElement == obj || nextElement.equals(obj)) {
 					iter.remove();
 					deleted = true;
+					break;
 				}
 			}
 			return deleted;
 		} finally {
+			if (deleted)
+				checkMods();
 			lock.writeLock().unlock();
 		}
 	}
@@ -227,6 +238,7 @@ public class NyxList<E> implements List<E>, Serializable {
 			elements.clear();
 			storage.clear();
 		} finally {
+			modCount = 0;
 			lock.writeLock().unlock();
 		}
 	}
@@ -236,8 +248,13 @@ public class NyxList<E> implements List<E>, Serializable {
 		return decode(storage.read(this.elements.get(index)));
 	}
 
+	private byte[] encode(E e) {
+		return this.converter.encode(e != null ? e : Const.<E> nil());
+	}
+
 	private E decode(byte[] data) {
-		return (E) this.converter.decode(data);
+		E decValue = this.converter.decode(data);
+		return (E) decValue != Const.<E> nil() ? decValue : null;
 	}
 
 	@Override
@@ -258,7 +275,20 @@ public class NyxList<E> implements List<E>, Serializable {
 			lock.writeLock().lock();
 			return decode(this.storage.delete(this.elements.get(index)));
 		} finally {
+			checkMods();
 			lock.writeLock().unlock();
+		}
+	}
+
+	/**
+	 * Checks the number of modifications and runs
+	 * {@link nyx.collectoins.storage.Storage#purge} when it is greater than 1/3
+	 * of this collection size.
+	 */
+	private void checkMods() {
+		if (modCount++ > size() / 3) {
+			this.storage.purge();
+			modCount = 0;
 		}
 	}
 
@@ -277,7 +307,7 @@ public class NyxList<E> implements List<E>, Serializable {
 
 	@Override
 	public int lastIndexOf(Object o) {
-		for (int i = size()-1; i >=0; i--) {
+		for (int i = size() - 1; i >= 0; i--) {
 			if (o.equals(get(i)))
 				return i;
 		}
@@ -334,60 +364,29 @@ public class NyxList<E> implements List<E>, Serializable {
 		return !(e1.hasNext() || e2.hasNext());
 	}
 
+	
+	private void readObject(java.io.ObjectInputStream in)
+			throws ClassNotFoundException, IOException {
+		in.defaultReadObject();
+		lock = new ReentrantReadWriteLock();
+	}
+	
 	class ListItr implements ListIterator<E> {
 
 		int cursor = 0;
 
-		public ListItr() {
-		}
+		public ListItr() {}
+		public ListItr(int position) { this.cursor = position; }
 
-		public ListItr(int position) {
-			this.cursor = position;
-		}
+		@Override public boolean hasNext() { return cursor < size(); }
+		@Override public E next() { return get(cursor++); }
+		@Override public boolean hasPrevious() { return cursor > 0; }
+		@Override public E previous() { return get(cursor--); }
+		@Override public int nextIndex() { return cursor + 1; }
+		@Override public int previousIndex() { return cursor - 1; }
+		@Override public void remove() { NyxList.this.remove(cursor); }
+		@Override public void set(E e) { NyxList.this.set(cursor, e); }
+		@Override public void add(E e) { NyxList.this.add(e); }
 
-		@Override
-		public boolean hasNext() {
-			return cursor < size();
-		}
-
-		@Override
-		public E next() {
-			return get(cursor++);
-		}
-
-		@Override
-		public boolean hasPrevious() {
-			return cursor > 0;
-		}
-
-		@Override
-		public E previous() {
-			return get(cursor--);
-		}
-
-		@Override
-		public int nextIndex() {
-			return cursor + 1;
-		}
-
-		@Override
-		public int previousIndex() {
-			return cursor - 1;
-		}
-
-		@Override
-		public void remove() {
-			NyxList.this.remove(cursor);
-		}
-
-		@Override
-		public void set(E e) {
-			NyxList.this.set(cursor, e);
-		}
-
-		@Override
-		public void add(E e) {
-			NyxList.this.add(e);
-		}
 	}
 }
