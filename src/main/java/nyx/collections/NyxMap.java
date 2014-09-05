@@ -1,5 +1,6 @@
 package nyx.collections;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -9,7 +10,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import nyx.collections.converter.Converter;
-import nyx.collections.converter.SerialConverter;
+import nyx.collections.converter.ConverterFactory;
 import nyx.collections.storage.Storage;
 
 /**
@@ -22,7 +23,10 @@ public class NyxMap<K, V> implements Map<K, V> {
 	private final Set<K> elements;
 	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	private Storage<K, byte[]> storage;
-	private Converter<Object, byte[]> converter = new SerialConverter();
+	private Converter<V, byte[]> converter = ConverterFactory.get();
+	
+	// counts update and delete operations
+	private volatile int modCount = 0;
 
 	public NyxMap() {
 		this.elements =  Acme.chashset();
@@ -65,18 +69,23 @@ public class NyxMap<K, V> implements Map<K, V> {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
+	private byte[] encode(V e) {
+		return this.converter.encode(e != null ? e : Const.<V>nil());
+	}
+	
 	private V decode(byte[] data) {
-		return (V) converter.decode(data);
+		V decValue = this.converter.decode(data);
+		return (V) decValue!=Const.<V>nil() ? decValue : null;
 	}
 
 	@Override
 	public V put(K key, V value) {
 		try {
 			lock.writeLock().lock();
-			storage.create(key, converter.encode(value));
-			return value;
-			} finally {
+			V prevValue = remove(key);
+			storage.create(key, encode(value));
+			return prevValue;
+		} finally {
 			lock.writeLock().unlock();
 		}
 	}
@@ -101,6 +110,18 @@ public class NyxMap<K, V> implements Map<K, V> {
 			lock.writeLock().unlock();
 		}
 	}
+	
+	/**
+	 * Checks the number of modifications and runs
+	 * {@link nyx.collectoins.storage.Storage#purge} when it is greater than 1/3
+	 * of this collection size.
+	 */
+	private void checkMods() {
+		if (modCount++ > size() / 3) {
+			this.storage.purge();
+			modCount = 0;
+		}
+	}
 
 	@Override
 	public void clear() {
@@ -108,6 +129,7 @@ public class NyxMap<K, V> implements Map<K, V> {
 			lock.writeLock().lock();
 			elements.clear();
 			storage.clear();
+			modCount = 0;
 		} finally {
 			lock.writeLock().unlock();
 		}
@@ -145,6 +167,12 @@ public class NyxMap<K, V> implements Map<K, V> {
 			}});
 		return result;
 	}
+	
+	private void readObject(java.io.ObjectInputStream in)
+			throws ClassNotFoundException, IOException {
+		in.defaultReadObject();
+		this.lock = new ReentrantReadWriteLock();
+	}	
 	
 	abstract class ANyxEntry implements Map.Entry<K,V> {
 		private K key;
