@@ -17,5 +17,9 @@ public class ConverterFactory {
 	public static <E> Converter<E,byte[]> forClass(Class<E> cls) {
 		return new SerialConverter<E>();
 	}
+	
+	public static <F,T> Converter<F,T> forTypes(Class<F> from, Class<T> to) {
+		return null;
+	}
 
 }

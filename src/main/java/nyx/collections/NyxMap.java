@@ -9,31 +9,33 @@ import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import nyx.collections.converter.Converter;
-import nyx.collections.converter.ConverterFactory;
+import nyx.collections.pool.ObjectPool;
+import nyx.collections.storage.ElasticStorage;
 import nyx.collections.storage.Storage;
 
 /**
- * Implementation of Java {@link java.util.Map} collection backed by off-heap memory storage.
+ * Hybrid (on-heap + off-heap) implementation of Java {@link java.util.Map} collection.
  * 
  * @author varlou@gmail.com
  */
 public class NyxMap<K, V> implements Map<K, V> {
 
 	private final Set<K> elements;
-	private Storage<K, byte[]> storage;
-	private Converter<V, byte[]> converter = ConverterFactory.get();
+	private Storage<K, V> storage;
 	
 	// main RW lock guarding all access to this Map
 	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	// counts update and delete operations
 	private volatile int modCount = 0;
 
-	public NyxMap() { this.elements =  Acme.chashset(); }
+	public NyxMap() {
+		this(16);
+	}
 	
 	public NyxMap(int capacity) {
 		if (capacity<1) throw new IllegalArgumentException();
 		this.elements = Acme.chashset(capacity);
+		this.storage = new ObjectPool<K,V>(new ElasticStorage<K>());
 	}
 
 	@Override
@@ -58,23 +60,15 @@ public class NyxMap<K, V> implements Map<K, V> {
 		return false;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public V get(Object key) {
 		try {
 			lock.readLock().lock();
-			return decode(storage.read(key));
+			return storage.read((K) key);
 		} finally {
 			lock.readLock().unlock();
 		}
-	}
-
-	private byte[] encode(V e) {
-		return this.converter.encode(e != null ? e : Const.<V>nil());
-	}
-	
-	private V decode(byte[] data) {
-		V decValue = this.converter.decode(data);
-		return (V) decValue!=Const.<V>nil() ? decValue : null;
 	}
 
 	@Override
@@ -83,7 +77,7 @@ public class NyxMap<K, V> implements Map<K, V> {
 		try {
 			lock.writeLock().lock();
 			prevValue = remove(key);
-			storage.create(key, encode(value));
+			storage.create(key, value);
 			return prevValue;
 		} finally {
 			if (prevValue!=null) checkMods();
@@ -91,13 +85,14 @@ public class NyxMap<K, V> implements Map<K, V> {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public V remove(Object key) {
 		boolean delete = false;
 		try {
 			lock.writeLock().lock();
 			delete = key != null && elements.remove(key);
-			return delete ? decode(storage.delete(key)) : null;
+			return delete ? storage.delete((K) key) : null;
 		} finally {
 			if (delete) checkMods();
 			lock.writeLock().unlock();
@@ -158,7 +153,7 @@ public class NyxMap<K, V> implements Map<K, V> {
 		try {
 			lock.readLock().lock();
 			List<V> result = new ArrayList<>(elements.size());
-			for (K e : elements) result.add(decode(storage.read(e)));
+			for (K e : elements) result.add(storage.read(e));
 			return result;
 		} finally {
 			lock.readLock().unlock();

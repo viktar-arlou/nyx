@@ -12,10 +12,10 @@ import java.util.Set;
  */
 public interface Storage<K, V> {
 
-	K create(K key, V value);
+	V create(K key, V value);
 	V update(K key, V value);
-	V read(Object id);
-	V delete(Object id);
+	V read(K id);
+	V delete(K id);
 	void clear();
 	int size();
 	Set<K> keySet();

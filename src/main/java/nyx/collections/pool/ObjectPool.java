@@ -1,65 +1,204 @@
 package nyx.collections.pool;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
+import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import nyx.collections.Acme;
+import nyx.collections.converter.Converter;
+import nyx.collections.converter.ConverterFactory;
+import nyx.collections.storage.Storage;
+import nyx.collections.vm.GCDetector;
+import nyx.collections.vm.GCDetector.Callback;
+import nyx.collections.vm.GCDetector.NotAvailable;
 
 /**
- * Objects pool for Nyx Collection classes. This class is used by Nyx
- * Collections classes to ensure that only one instance of a collection element
- * created until it is recycled by the garbage collector.
+ * This class represents a pool of objects. Provides implementation of
+ * {@link nyx.collections.storage.Storage} interface.
  * 
  * @author varlou@gmail.com
- *
- * @param <K>
- *            key
- * @param <E>
- *            value
  */
-public class ObjectPool<K, E> {
+public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializable {
 
-	private Map<K, WeakReference<E>> objectPool = Acme.chashmap();
+	private static final long serialVersionUID = 1188810172228586264L;
 
-	ReferenceQueue<E> rQueue = new ReferenceQueue<>();
+	private Map<K, Reference<E>> objectPool = Acme.chashmap();
 
-	public E lookup(K key) {
-		return objectPool.containsKey(key) ? objectPool.get(key).get() : null;
+	private Storage<K, byte[]> offHeapStorage;
+	private Converter<E, byte[]> converter = ConverterFactory.get();
+
+	private ReferenceQueue<E> rQueue;
+	private Lock rqLock;
+	private Condition notEmpty;
+	
+
+	public enum Type { NONE, WEAK, SOFT }
+	private Type type;
+	private ValueFactory vf;
+	
+	private Thread cleaner;
+	private volatile boolean stopCleaning = false;
+
+	public ObjectPool(Storage<K, byte[]> offHeapStorage) {
+		this(Type.WEAK,offHeapStorage);
+	}
+	
+	public ObjectPool(Type type, Storage<K, byte[]> offHeapStorage) {
+		init(type, offHeapStorage);
 	}
 
-	public E pool(K key, E value) {
-		this.objectPool.put(key, new Value(key, value, rQueue));
+	private void init(Type type, Storage<K, byte[]> offHeapStorage) {
+		this.offHeapStorage = offHeapStorage;
+		this.rQueue = new ReferenceQueue<>();
+		this.rqLock = new ReentrantLock();
+		this.notEmpty = rqLock.newCondition();
+		this.vf = new ValueFactory();
+		this.type = type;
+		try {
+			GCDetector.listen(this);
+		} catch (NotAvailable e) {
+			// run worker thread every second to swap GC'ed objects into
+		}
+		if (!isNone()) {
+			cleaner = new Thread(new Runnable() {
+				@Override public void run() {
+					while (!stopCleaning) try { clean(); } catch (InterruptedException e) { } }
+				});
+			cleaner.start();
+		}
+	}
+
+	private boolean isNone() {
+		return this.type.equals(Type.NONE);
+	}
+
+	@Override
+	public E read(K key) {
+		E res = objectPool.containsKey(key) ? objectPool.get(key).get() : null;
+		if (res==null) objectPool.put(key, new WeakReference<>(res = converter.decode(this.offHeapStorage.read(key))));
+		return res;
+	}
+
+	@Override
+	public E create(K key, E value) {
+		if (!isNone()) this.objectPool.put(key, vf.make(key, value, rQueue));
+		this.offHeapStorage.create(key,converter.encode(value));
 		return value;
 	}
 
-	public E remove(K key) {
-		return this.objectPool.remove(key).get();
+	@Override
+	public E delete(K key) {
+		E res = converter.decode(this.offHeapStorage.delete(key));
+		this.objectPool.remove(key);
+		return res;
 	}
 
 	@SuppressWarnings("unchecked")
-	public void clean() {
-		for (Value qe; (qe = (Value) rQueue.poll()) != null;)
-			qe.cleanup();
-	}
-
-	class Value extends WeakReference<E> {
-
-		private K key;
-
-		public Value(K key, E referent) {
-			super(referent);
-			this.key = key;
-		}
-
-		public Value(K key, E referent, ReferenceQueue<? super E> q) {
-			super(referent, q);
-			this.key = key;
-		}
-
-		public void cleanup() {
-			ObjectPool.this.objectPool.remove(key);
+	public void clean() throws InterruptedException  {
+		rqLock.lock();
+		try {
+			int cleaned = 0;
+			Value<K> qe = null;
+			while ((qe = (Value<K>) rQueue.poll()) == null) notEmpty.await();
+			do { objectPool.remove(qe.getKey());cleaned++; } while ((qe = (Value<K>) rQueue.poll()) != null);
+//			System.err.println("cleaned: "+cleaned);
+		} finally {
+			rqLock.unlock();
 		}
 	}
 
+	/** This method is called after each GC. */
+	@Override
+	public void handle(Void e) {
+		rqLock.lock();
+		try { notEmpty.signal(); } finally { rqLock.unlock(); }
+	}
+
+	@Override
+	public E update(K key, E value) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void clear() {
+		objectPool.clear();
+		offHeapStorage.clear();
+		init(type, offHeapStorage);
+	}
+
+	@Override
+	public int size() {
+		try {
+			rqLock.lock();
+			try { clean(); } catch (InterruptedException e) { }
+			return objectPool.size() + offHeapStorage.size();
+		} finally {
+			rqLock.unlock();
+		}
+	}
+
+	@Override
+	public Set<K> keySet() {
+		synchronized (rQueue) {
+			Set<K> res = Acme.hashset();
+			res.addAll(objectPool.keySet());
+			res.addAll(offHeapStorage.keySet());
+			return res;
+		}
+	}
+
+	@Override
+	public void purge() {
+		throw new UnsupportedOperationException();
+	}
+
+	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+		out.writeObject(new Object[] {offHeapStorage,type});
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(java.io.ObjectInputStream in)
+			throws ClassNotFoundException, IOException {
+		this.objectPool = Acme.chashmap();
+		this.rQueue = new ReferenceQueue<>();
+		this.converter = ConverterFactory.get();
+		Object[] obj = (Object[]) in.readObject();
+		init((Type) obj[1], (Storage<K, byte[]>) obj[0]);
+	}
+
+	
+	public class ValueFactory {
+		public Reference<E> make(K key, E value, ReferenceQueue<E> rQueue) {
+			return (ObjectPool.this.type.equals(Type.SOFT)) ? new ValueSoft(key,value) : new ValueWeak(key,value);
+		}
+	}
+
+	class ValueSoft extends SoftReference<E> implements Value<K> {
+		public K key;
+		public ValueSoft(K key, E referent) {
+			super(referent, rQueue);
+			this.key = key;
+		}
+		public K getKey() { return key; }
+	}
+	
+	class ValueWeak extends WeakReference<E> implements Value<K> {
+		public K key;
+		public ValueWeak(K key, E referent) {
+			super(referent, rQueue);
+			this.key = key;
+		}
+		public K getKey() { return key; }
+	}
+	
+	interface Value<K> { K getKey(); }
+	
 }

@@ -2,7 +2,6 @@ package nyx.collections;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,14 +13,13 @@ import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import nyx.collections.converter.Converter;
-import nyx.collections.converter.ConverterFactory;
 import nyx.collections.pool.ObjectPool;
+import nyx.collections.pool.ObjectPool.Type;
 import nyx.collections.storage.ElasticStorage;
 import nyx.collections.storage.Storage;
 
 /**
- * Off-heap implementation of Java {@link java.util.List} collection.
+ * Hybrid (on-heap + off-heap) implementation of Java {@link java.util.List} collection.
  * 
  * @author varlou@gmail.com
  */
@@ -29,8 +27,7 @@ public class NyxList<E> implements List<E>, Serializable {
 
 	private static final long serialVersionUID = 2004160303284077450L;
 
-	private Storage<Integer, byte[]> storage;
-	private Converter<E, byte[]> converter = ConverterFactory.get();
+	private Storage<Integer, E> storage;
 
 	private List<Integer> elements;
 	private int size = 0;
@@ -41,29 +38,22 @@ public class NyxList<E> implements List<E>, Serializable {
 	// main RW lock guarding all access
 	private transient ReadWriteLock lock = new ReentrantReadWriteLock();
 	
-	private transient ObjectPool<Integer,E> objPool = new ObjectPool<>();
-
 	/**
 	 * Creates NyxList with an initial capacity of 16 elements and 4Kb.
 	 */
 	public NyxList() {
-		this(16, Const._1Kb * 4);
+		this(16, Const._1Kb * 4, Type.WEAK);
 	}
 
-	public NyxList(int capacity, int memSize) {
+	public NyxList(int capacity, int memSize, Type poolType) {
 		if (capacity < 1)
 			throw new IllegalArgumentException();
-		this.storage = new ElasticStorage<>(memSize);
+		this.storage = new ObjectPool<Integer,E>(poolType, new ElasticStorage<Integer>());
 		this.elements = new ArrayList<>(capacity);
 	}
-
-	public NyxList(int capacity, int memSize, Converter<E, byte[]> converter) {
-		this(capacity, memSize);
-		this.converter = converter;
-	}
-
+	
 	public NyxList(Collection<? extends E> copy) {
-		this(copy.size(), Const._1Mb);
+		this(copy.size(), Const._1Kb * 4, Type.WEAK);
 		addAll(copy);
 	}
 
@@ -92,21 +82,9 @@ public class NyxList<E> implements List<E>, Serializable {
 	public Iterator<E> iterator() {
 		return new Iterator<E>() {
 			private int iCursor = 0;
-
-			@Override
-			public boolean hasNext() {
-				return iCursor < NyxList.this.elements.size() - 1;
-			}
-
-			@Override
-			public E next() {
-				return get(iCursor++);
-			}
-
-			@Override
-			public void remove() {
-				NyxList.this.remove(get(iCursor));
-			}
+			@Override public boolean hasNext() { return iCursor < NyxList.this.elements.size() - 1; }
+			@Override public E next() { return get(iCursor++); }
+			@Override public void remove() { NyxList.this.remove(get(iCursor)); }
 		};
 	}
 
@@ -139,8 +117,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public boolean add(E e) {
 		try {
 			lock.writeLock().lock();
-			objPool.pool(size, e);
-			this.storage.create(size, encode(e));
+			storage.create(size, e);
 			this.elements.add(size++);
 		} finally {
 			lock.writeLock().unlock();
@@ -152,8 +129,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public void add(int index, E element) {
 		try {
 			lock.writeLock().lock();
-			objPool.pool(index, element);
-			this.storage.create(size, encode(element));
+			this.storage.create(size, element);
 			this.elements.add(index, size++);
 		} finally {
 			lock.writeLock().unlock();
@@ -168,10 +144,9 @@ public class NyxList<E> implements List<E>, Serializable {
 			Iterator<Integer> iter = elements.iterator();
 			while (iter.hasNext()) {
 				Integer key = iter.next();
-				E nextElement = decode(this.storage.read(key));
+				E nextElement = this.storage.read(key);
 				if (nextElement == obj || nextElement.equals(obj)) {
 					iter.remove();
-					objPool.remove(key);
 					deleted = true;
 					break;
 				}
@@ -252,17 +227,7 @@ public class NyxList<E> implements List<E>, Serializable {
 
 	@Override
 	public E get(int index) {
-		E value = objPool.lookup(index);
-		return  value!=null ? value : objPool.pool(index,decode(storage.read(this.elements.get(index))));
-	}
-
-	private byte[] encode(E e) {
-		return this.converter.encode(e != null ? e : Const.<E> nil());
-	}
-
-	private E decode(byte[] data) {
-		E decValue = this.converter.decode(data);
-		return (E) decValue != Const.<E> nil() ? decValue : null;
+		return storage.read(index);
 	}
 
 	@Override
@@ -281,8 +246,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public E remove(int index) {
 		try {
 			lock.writeLock().lock();
-			objPool.remove(index);
-			return decode(this.storage.delete(this.elements.get(index)));
+			return this.storage.delete(this.elements.get(index));
 		} finally {
 			checkMods();
 			lock.writeLock().unlock();
@@ -339,7 +303,7 @@ public class NyxList<E> implements List<E>, Serializable {
 			lock.readLock().lock();
 			List<E> result = new ArrayList<>(toIndex - fromIndex);
 			for (Integer id : this.elements.subList(fromIndex, toIndex))
-				result.add(decode(storage.read(id)));
+				result.add(storage.read(id));
 			return result;
 		} finally {
 			lock.readLock().unlock();

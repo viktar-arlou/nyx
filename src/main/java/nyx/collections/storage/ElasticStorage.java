@@ -23,9 +23,6 @@ import nyx.collections.Const;
  * {@link java.nio.ByteBuffers} outside garbage-collected memory.
  * 
  * @author varlou@gmail.com
- *
- * @param <E>
- *            key type
  */
 public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
@@ -60,7 +57,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	}
 
 	@Override
-	public E create(E id, byte[] addme) {
+	public byte[] create(E id, byte[] addme) {
 		if (elementsLocation.containsKey(id)) 
 			throw new IllegalArgumentException();
 		try {
@@ -79,7 +76,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 			}
 			location[1] = this.cursor;
 			elementsLocation.put(id, location);
-			return id;
+			return addme;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		} finally {
@@ -88,7 +85,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	}
 
 	@Override
-	public byte[] read(Object id) {
+	public byte[] read(E id) {
 		try {
 			lock.readLock().lock();
 			if (!elementsLocation.containsKey(id)) throw new IllegalArgumentException();
@@ -184,7 +181,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	 *            the id of the object to be removed
 	 */
 	@Override
-	public byte[] delete(Object id) {
+	public byte[] delete(E id) {
 		try {
 			lock.writeLock().lock();
 			byte[] res = read(id);
@@ -248,7 +245,6 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 		}
 	}
 
-	
 	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
 		out.writeObject(new Object[]{ this.capacity,this.elementsLocation, this.cursor, this.dbbs.size() });
 		for (ByteBuffer byteBuffer : dbbs) {
