@@ -20,7 +20,6 @@ import nyx.collections.storage.Storage;
  */
 public class NyxMap<K, V> implements Map<K, V> {
 
-	private final Set<K> elements;
 	private Storage<K, V> storage;
 	
 	// main RW lock guarding all access to this Map
@@ -34,23 +33,22 @@ public class NyxMap<K, V> implements Map<K, V> {
 	
 	public NyxMap(int capacity) {
 		if (capacity<1) throw new IllegalArgumentException();
-		this.elements = Acme.chashset(capacity);
 		this.storage = new ObjectPool<K,V>(new ElasticStorage<K>());
 	}
 
 	@Override
 	public int size() {
-		return this.elements.size();
+		return this.storage.size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return this.elements.isEmpty();
+		return this.storage.size() == 0;
 	}
 
 	@Override
 	public boolean containsKey(Object key) {
-		return this.elements.contains(key);
+		return storage.keySet().contains(key);
 	}
 
 	@Override
@@ -73,30 +71,15 @@ public class NyxMap<K, V> implements Map<K, V> {
 
 	@Override
 	public V put(K key, V value) {
-		V prevValue = null;
-		try {
-			lock.writeLock().lock();
-			prevValue = remove(key);
-			storage.create(key, value);
-			return prevValue;
-		} finally {
-			if (prevValue!=null) checkMods();
-			lock.writeLock().unlock();
-		}
+		V prevValue = remove(key);
+		storage.create(key, value);
+		return prevValue;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public V remove(Object key) {
-		boolean delete = false;
-		try {
-			lock.writeLock().lock();
-			delete = key != null && elements.remove(key);
-			return delete ? storage.delete((K) key) : null;
-		} finally {
-			if (delete) checkMods();
-			lock.writeLock().unlock();
-		}
+		return storage.delete((K) key);
 	}
 
 	/**
@@ -104,13 +87,8 @@ public class NyxMap<K, V> implements Map<K, V> {
 	 */
 	@Override
 	public void putAll(Map<? extends K, ? extends V> map) {
-		try {
-			lock.writeLock().lock();
-			for (Map.Entry<? extends K, ? extends V> e : map.entrySet())
-				put(e.getKey(), e.getValue());
-		} finally {
-			lock.writeLock().unlock();
-		}
+		for (Map.Entry<? extends K, ? extends V> e : map.entrySet())
+			put(e.getKey(), e.getValue());
 	}
 	
 	/**
@@ -127,43 +105,25 @@ public class NyxMap<K, V> implements Map<K, V> {
 
 	@Override
 	public void clear() {
-		try {
-			lock.writeLock().lock();
-			elements.clear();
-			storage.clear();
-			modCount = 0;
-		} finally {
-			lock.writeLock().unlock();
-		}
-
+		storage.clear();
 	}
 
 	@Override
 	public Set<K> keySet() {
-		try {
-			lock.readLock().lock();
-			return Acme.umset(elements);
-		} finally {
-			lock.readLock().unlock();
-		}
+		return storage.keySet();
 	}
 
 	@Override
 	public Collection<V> values() {
-		try {
-			lock.readLock().lock();
-			List<V> result = new ArrayList<>(elements.size());
-			for (K e : elements) result.add(storage.read(e));
-			return result;
-		} finally {
-			lock.readLock().unlock();
-		}
+		List<V> result = new ArrayList<>(storage.size());
+		for (K key : this.storage.keySet()) result.add(storage.read(key));
+		return result;
 	}
 
 	@Override
 	public Set<Map.Entry<K, V>> entrySet() {
 		Set<java.util.Map.Entry<K, V>> result = Acme.hashset(size());
-		for (K key : this.elements)	
+		for (K key : this.storage.keySet())	
 			result.add(new ANyxEntry(key) {
 				@Override public V getValue() {return NyxMap.this.get(getKey());
 			}});
