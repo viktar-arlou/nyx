@@ -8,7 +8,7 @@ public class ConverterFactory {
 	 * Returns default converter.
 	 */
 	public static <E> Converter<E,byte[]> get() {
-		return new SerialConverter<E>();
+		return new NullConverter<>(new SerialConverter<E>());
 	}
 	
 	/**

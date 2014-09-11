@@ -27,6 +27,7 @@ public class SerialConverter<E> implements Converter<E, byte[]>, Serializable {
 	
 	@Override
 	public byte[] encode(E from) {
+		if (from==null) return null;
 		ByteArrayOutputStream baos = BAOS.get();
 		synchronized (baos) {
 			try {
@@ -45,6 +46,7 @@ public class SerialConverter<E> implements Converter<E, byte[]>, Serializable {
 	@SuppressWarnings("unchecked")
 	@Override
 	public E decode(byte[] to) {
+		if (to==null) return null;
 		try {
 			return (E) new ObjectInputStream(new ByteArrayInputStream(to)).readUnshared();
 		} catch (ClassNotFoundException | IOException e) {
