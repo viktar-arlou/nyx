@@ -12,7 +12,13 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import nyx.collections.Acme;
 import nyx.collections.Const;
 import nyx.collections.NyxList;
 import nyx.collections.pool.ObjectPool.Type;
@@ -149,7 +155,7 @@ public class NyxListTest {
 		List<String> list2 = new ArrayList<>();
 		int numberOfElements = 1_000_000;
 		for (int i = 0; i < numberOfElements; i++) {
-			//String element = ""+i; // no element GC'ed
+			//String element = ""+i; // no elements GC'ed
 			list.add(""+i);
 			list2.add(""+i);
 		}
@@ -164,6 +170,39 @@ public class NyxListTest {
 		Assert.assertTrue(notFound.isEmpty());
 	}
 
+	@Test
+	public void testConcurrent() throws Exception {
+		class A { public volatile AtomicInteger total = new AtomicInteger(0); }
+		int nThreads = 100;
+		final int nRecords = 10000;
+		final List<String> nyx = new NyxList<>();
+		Thread[] athr = new Thread[nThreads];
+		final A a = new A();
+		for (int i = 0;i < athr.length; i++) {
+		final int z = i;
+		athr[i] = new Thread(new Runnable(){
+			@Override
+			public void run() {
+				for (int y = 0; y < nRecords; y++)	{
+					nyx.add(""+z);
+					a.total.addAndGet(z);
+				}
+			}});
+		athr[i].start();
+		}
+		for (int i = 0; i < athr.length; i++) 
+			athr[i].join();
+		int size = nyx.size();
+		int total = 0;
+		for (Iterator<String> iterator = nyx.iterator(); iterator.hasNext();) {
+			int element = Integer.valueOf(iterator.next());
+			total+=element;
+		}
+		Assert.assertTrue(size == nThreads*nRecords);
+		int aTotal = a.total.get();
+		Assert.assertTrue(aTotal == total);
+	}
+	
 	public static byte[] serialize(Object obj) throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		ObjectOutputStream os = new ObjectOutputStream(out);
