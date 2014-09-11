@@ -88,7 +88,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	public byte[] read(E id) {
 		try {
 			lock.readLock().lock();
-			if (!elementsLocation.containsKey(id)) throw new IllegalArgumentException();
+			if (!elementsLocation.containsKey(id)) return null;
 			long[] location = elementsLocation.get(id);
 			assert location.length == 2;
 			byte[] result = new byte[(int) (location[1] - location[0])];

@@ -82,7 +82,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public Iterator<E> iterator() {
 		return new Iterator<E>() {
 			private int iCursor = 0;
-			@Override public boolean hasNext() { return iCursor < NyxList.this.elements.size() - 1; }
+			@Override public boolean hasNext() { return iCursor <= NyxList.this.elements.size() - 1; }
 			@Override public E next() { return get(iCursor++); }
 			@Override public void remove() { NyxList.this.remove(get(iCursor)); }
 		};

@@ -21,17 +21,19 @@ import nyx.collections.vm.GCDetector.Callback;
 import nyx.collections.vm.GCDetector.NotAvailable;
 
 /**
- * This class represents a pool of objects. Provides implementation of
+ * This class represents a pool of objects and implements
  * {@link nyx.collections.storage.Storage} interface.
  * 
  * @author varlou@gmail.com
  */
 public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializable {
 
+	public enum Type { NONE, WEAK, SOFT }
+
 	private static final long serialVersionUID = 1188810172228586264L;
 
-	private Map<K, Reference<E>> objectPool = Acme.chashmap();
 
+	private Map<K, Reference<E>> objectPool = Acme.chashmap();
 	private Storage<K, byte[]> offHeapStorage;
 	private Converter<E, byte[]> converter = ConverterFactory.get();
 
@@ -40,7 +42,6 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	private Condition notEmpty;
 	
 
-	public enum Type { NONE, WEAK, SOFT }
 	private Type type;
 	private ValueFactory vf;
 	
@@ -65,7 +66,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		try {
 			GCDetector.listen(this);
 		} catch (NotAvailable e) {
-			// run worker thread every second to swap GC'ed objects into
+			// run worker thread for cleaning
 		}
 		if (!isNone()) {
 			cleaner = new Thread(new Runnable() {
@@ -115,7 +116,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		}
 	}
 
-	/** This method is called after each GC. */
+	/** This method is called after each GC */
 	@Override
 	public void handle(Void e) {
 		rqLock.lock();
@@ -124,7 +125,9 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 
 	@Override
 	public E update(K key, E value) {
-		throw new UnsupportedOperationException();
+		objectPool.remove(key);
+		offHeapStorage.update(key, converter.encode(value));
+		return value;
 	}
 
 	@Override
@@ -136,23 +139,12 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 
 	@Override
 	public int size() {
-		try {
-			rqLock.lock();
-			try { clean(); } catch (InterruptedException e) { }
-			return objectPool.size() + offHeapStorage.size();
-		} finally {
-			rqLock.unlock();
-		}
+		return offHeapStorage.size();
 	}
 
 	@Override
 	public Set<K> keySet() {
-		synchronized (rQueue) {
-			Set<K> res = Acme.hashset();
-			res.addAll(objectPool.keySet());
-			res.addAll(offHeapStorage.keySet());
-			return res;
-		}
+		return offHeapStorage.keySet();
 	}
 
 	@Override
