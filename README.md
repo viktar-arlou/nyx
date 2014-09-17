@@ -6,7 +6,7 @@ Starting from v0.2, it comes with a light-weight API based on the concept of flu
 ##Examples
 ```
 /* Filters out null elements */
-List<Integer> list1 = Fn.on(list).filter(Fn<Integer>notNull()).get();
+List<Integer> list1 = Fn.on(list).filter(Fn.<Integer>notNull()).get();
 
 /* A field of an anonymous class can be used to accumulate and retrieve
 * computation result */
@@ -19,7 +19,7 @@ int sum = Fn.on(list1).each().exec(new IFn<Integer, Void>() {
     }
 }).counter;
 /* Filters out elements outside given range */
-list1 = Fn.on(list1).filter(Fn<Integer>range(0, 5)).get();
+list1 = Fn.on(list1).filter(Fn.<Integer>range(0, 5)).get();
 sum = Fn.on(list1).each().exec(new IFn<Integer, Void>() {
     int sum = 0;
     @Override
