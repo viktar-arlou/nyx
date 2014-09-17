@@ -4,8 +4,33 @@ Nyx is a library that offers implementation of standard Java Collections API whi
 Starting from v0.2, it comes with a light-weight API based on the concept of fluent interfaces that allows easy and concise implementation of various operations on collections (#foreach, #filter, #mapTo etc.)
 
 ##Examples
-<script src="https://gist.github.com/Arvik/df8d2f8e4481dbee366c.js"></script>
+```
+<pre>
+/* Filters out null elements */
+List&lt;Integer&gt; list1 = Fn.on(list).filter(Fn.&lt;Integer&gt;notNull()).get();
 
+/* A field of an anonymous class can be used to accumulate and retrieve
+* computation result */
+int sum = Fn.on(list1).each().exec(new IFn&lt;Integer, Void&gt;() {
+    int sum = 0;
+    @Override
+    public Void apply(Integer t) {
+        sum += t;
+        return null;
+    }
+}).counter;
+/* Filters out elements outside given range */
+list1 = Fn.on(list1).filter(Fn.&lt;Integer&gt;range(0, 5)).get();
+sum = Fn.on(list1).each().exec(new IFn&lt;Integer, Void&gt;() {
+    int sum = 0;
+    @Override
+    public Void apply(Integer t) {
+        sum += t;
+        return null;
+    }
+}).sum;
+</pre>
+```
 ## Requirements
 
 Nyx can be used on Java 6 (or later) platform. Compatibility with Java 5 is foreseen in future releases. 
