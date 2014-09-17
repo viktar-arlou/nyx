@@ -4,7 +4,6 @@ Nyx is a library that offers implementation of standard Java Collections API whi
 Starting from v0.2, it comes with a light-weight API based on the concept of fluent interfaces that allows easy and concise implementation of various operations on collections (#foreach, #filter, #mapTo etc.)
 
 ##Examples
-
 <script src="https://gist.github.com/Arvik/df8d2f8e4481dbee366c.js"></script>
 
 ## Requirements
