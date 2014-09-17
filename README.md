@@ -5,7 +5,6 @@ Starting from v0.2, it comes with a light-weight API based on the concept of flu
 
 ##Examples
 ```
-<pre>
 /* Filters out null elements */
 List&lt;Integer&gt; list1 = Fn.on(list).filter(Fn.&lt;Integer&gt;notNull()).get();
 
@@ -29,7 +28,6 @@ sum = Fn.on(list1).each().exec(new IFn&lt;Integer, Void&gt;() {
         return null;
     }
 }).sum;
-</pre>
 ```
 ## Requirements
 
