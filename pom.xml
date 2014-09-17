@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>nyx</groupId>
 	<artifactId>nyx-collections</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
+	<version>0.2.0-SNAPSHOT</version>
 	<distributionManagement>
 		<repository>
 			<id>internal.repo</id>
@@ -54,7 +54,8 @@
 					<repositoryOwner>Arvik</repositoryOwner>    <!-- github username -->
 				</configuration>
 				<executions>
-					<!-- run site-maven-plugin's 'site' target as part of the build's normal 'deploy' phase -->
+					<!-- run site-maven-plugin's 'site' target as part of the build's normal 
+						'deploy' phase -->
 					<execution>
 						<goals>
 							<goal>site</goal>
@@ -70,6 +71,11 @@
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.11</version>
+		</dependency>
+		<dependency>
+			<groupId>cglib</groupId>
+			<artifactId>cglib</artifactId>
+			<version>3.1</version>
 		</dependency>
 	</dependencies>
 	<contributors>

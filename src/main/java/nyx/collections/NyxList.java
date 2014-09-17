@@ -13,6 +13,10 @@ import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import nyx.collections.fn.Fn;
+import nyx.collections.fn.ICollection;
+import nyx.collections.fn.IEx;
+import nyx.collections.fn.IFn;
 import nyx.collections.pool.ObjectPool;
 import nyx.collections.pool.ObjectPool.Type;
 import nyx.collections.storage.ElasticStorage;
@@ -23,7 +27,7 @@ import nyx.collections.storage.Storage;
  * 
  * @author varlou@gmail.com
  */
-public class NyxList<E> implements List<E>, Serializable {
+public class NyxList<E> implements List<E>, ICollection<E>, Serializable {
 
 	private static final long serialVersionUID = 2004160303284077450L;
 
@@ -227,6 +231,7 @@ public class NyxList<E> implements List<E>, Serializable {
 
 	@Override
 	public E get(int index) {
+		checkBounds(index);
 		return storage.read(index);
 	}
 
@@ -246,11 +251,16 @@ public class NyxList<E> implements List<E>, Serializable {
 	public E remove(int index) {
 		try {
 			lock.writeLock().lock();
+			checkBounds(index);
 			return this.storage.delete(this.elements.get(index));
 		} finally {
 			checkMods();
 			lock.writeLock().unlock();
 		}
+	}
+
+	private void checkBounds(int index) {
+		if (index > size()-1) throw new IndexOutOfBoundsException();
 	}
 
 	/**
@@ -361,5 +371,20 @@ public class NyxList<E> implements List<E>, Serializable {
 		@Override public void set(E e) { NyxList.this.set(cursor, e); }
 		@Override public void add(E e) { NyxList.this.add(e); }
 
+	}
+
+	@Override
+	public IEx<E> each() {
+		return Fn.on(this).each();
+	} 
+	
+	@Override
+	public Collection<E> get() {
+		return this;
+	}
+
+	@Override
+	public <T extends IFn<E, Boolean>> ICollection<E> filter(T iFunc) {
+		return Fn.on(this).filter(iFunc);
 	}
 }

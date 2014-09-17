@@ -12,13 +12,8 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import nyx.collections.Acme;
 import nyx.collections.Const;
 import nyx.collections.NyxList;
 import nyx.collections.pool.ObjectPool.Type;
@@ -172,12 +167,11 @@ public class NyxListTest {
 
 	@Test
 	public void testConcurrent() throws Exception {
-		class A { public volatile AtomicInteger total = new AtomicInteger(0); }
 		int nThreads = 100;
 		final int nRecords = 10000;
 		final List<String> nyx = new NyxList<>();
 		Thread[] athr = new Thread[nThreads];
-		final A a = new A();
+		final AtomicInteger atotal = new AtomicInteger(0); 
 		for (int i = 0;i < athr.length; i++) {
 		final int z = i;
 		athr[i] = new Thread(new Runnable(){
@@ -185,7 +179,7 @@ public class NyxListTest {
 			public void run() {
 				for (int y = 0; y < nRecords; y++)	{
 					nyx.add(""+z);
-					a.total.addAndGet(z);
+					atotal.addAndGet(z);
 				}
 			}});
 		athr[i].start();
@@ -199,7 +193,7 @@ public class NyxListTest {
 			total+=element;
 		}
 		Assert.assertTrue(size == nThreads*nRecords);
-		int aTotal = a.total.get();
+		int aTotal = atotal.get();
 		Assert.assertTrue(aTotal == total);
 	}
 	
