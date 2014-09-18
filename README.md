@@ -42,7 +42,7 @@ Nyx can be used on Java 6 (or later) platform. Compatibility with Java 5 is fore
 
 * v0.2
 	- New API for easy Nyx collections traversal and modifications (foreach, mapTo, filter).
-	- Asynchronous object serialization for better throughput. 
+	- Asynchronous objects store and fetch operations for better throughput. 
 * v0.1
 	- Implementation of Java collections allocated in off-heap memory. 
 	- Uses standard Java serialization mechanism to move data objects.

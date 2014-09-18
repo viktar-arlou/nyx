@@ -26,7 +26,8 @@ public class NyxMap<K, V> implements Map<K, V> {
 	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	// counts update and delete operations
 	private volatile int modCount = 0;
-
+	private final int MOD_THRESHOLD = 3;
+	
 	public NyxMap() {
 		this(16);
 	}
@@ -71,7 +72,7 @@ public class NyxMap<K, V> implements Map<K, V> {
 
 	@Override
 	public V put(K key, V value) {
-		V prevValue = remove(key);
+		V prevValue = checkMods(remove(key));
 		storage.create(key, value);
 		return prevValue;
 	}
@@ -79,7 +80,7 @@ public class NyxMap<K, V> implements Map<K, V> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public V remove(Object key) {
-		return storage.delete((K) key);
+		return checkMods(storage.delete((K) key));
 	}
 
 	/**
@@ -95,16 +96,21 @@ public class NyxMap<K, V> implements Map<K, V> {
 	 * Checks total number of modifications and executes
 	 * {@link nyx.collectoins.storage.Storage#purge} when it exceeds 1/3 of this
 	 * collection size.
+	 * 
+	 * @param prevValue variable equal to <b>null</b> causes this method to skip.
 	 */
-	private void checkMods() {
-		if (modCount++ > size() / 3) {
+	private V checkMods(V prevValue) {
+		
+		if (prevValue!=null && modCount++ > size() / MOD_THRESHOLD) {
 			this.storage.purge();
 			modCount = 0;
 		}
+		return prevValue;
 	}
 
 	@Override
 	public void clear() {
+		modCount = 0;
 		storage.clear();
 	}
 

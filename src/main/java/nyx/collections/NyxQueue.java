@@ -1,9 +1,11 @@
 package nyx.collections;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-public class NyxQueue<E> extends NyxList<E> implements Queue<E> {
+public class NyxQueue<E extends Serializable> extends NyxList<E> implements Queue<E>, Serializable {
 
 	private static final long serialVersionUID = -5865537730193466157L;
 

@@ -27,7 +27,7 @@ import nyx.collections.storage.Storage;
  * 
  * @author varlou@gmail.com
  */
-public class NyxList<E> implements List<E>, ICollection<E>, Serializable {
+public class NyxList<E> implements List<E>, Serializable {
 
 	private static final long serialVersionUID = 2004160303284077450L;
 
@@ -356,9 +356,9 @@ public class NyxList<E> implements List<E>, ICollection<E>, Serializable {
 	
 	class ListItr implements ListIterator<E> {
 
-		int cursor = 0;
+		private int cursor = 0;
 
-		public ListItr() {}
+		public ListItr() { }
 		public ListItr(int position) { this.cursor = position; }
 
 		@Override public boolean hasNext() { return cursor < size(); }
@@ -367,24 +367,10 @@ public class NyxList<E> implements List<E>, ICollection<E>, Serializable {
 		@Override public E previous() { return get(cursor--); }
 		@Override public int nextIndex() { return cursor + 1; }
 		@Override public int previousIndex() { return cursor - 1; }
-		@Override public void remove() { NyxList.this.remove(cursor); }
+		@Override public void remove() { NyxList.this.remove(cursor--); }
 		@Override public void set(E e) { NyxList.this.set(cursor, e); }
 		@Override public void add(E e) { NyxList.this.add(e); }
 
 	}
 
-	@Override
-	public IEx<E> each() {
-		return Fn.on(this).each();
-	} 
-	
-	@Override
-	public Collection<E> get() {
-		return this;
-	}
-
-	@Override
-	public <T extends IFn<E, Boolean>> ICollection<E> filter(T iFunc) {
-		return Fn.on(this).filter(iFunc);
-	}
 }

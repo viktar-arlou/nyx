@@ -34,7 +34,6 @@ public class NyxListTest {
 			values[i] = i + ":" + randomStr(LENGTH - 2, i % 2 == 0 ? "a" : "b");
 			list.add(values[i]);
 		}
-		System.gc();
 		for (int i = 0; i < NUMBER_OF_ITEMS; i++) {
 			Assert.assertEquals(i + "'th element is wrong", values[i],
 					list.get(i));
