@@ -19,15 +19,11 @@ List<Integer> list1 = Fn.on(list).filter(Fn.<Integer>notNull()).get();
 list1 = Fn.on(list1).filter(Fn.<Integer>range(0, 5)).get();
 
 /* A field of an anonymous class can be used to accumulate and return computation result */
-int sum = Fn.on(list1).each().exec(new IFn<Integer, Void>() {
-    int sum = 0;
-    @Override
-    public Void apply(Integer t) {
-        sum += t;
-        return null;
-    }
+int sum = Fn.on(list1).forEach(new Fn.NoRet<Integer>() {
+	int counter = 0;
+	@Override
+	public void func0(Integer t) { counter += t; }
 }).counter;
-
 ```
 ### Requirements
 
