@@ -13,10 +13,6 @@ import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import nyx.collections.fn.Fn;
-import nyx.collections.fn.ICollection;
-import nyx.collections.fn.IEx;
-import nyx.collections.fn.IFn;
 import nyx.collections.pool.ObjectPool;
 import nyx.collections.pool.ObjectPool.Type;
 import nyx.collections.storage.ElasticStorage;

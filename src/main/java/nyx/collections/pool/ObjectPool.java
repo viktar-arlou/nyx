@@ -59,7 +59,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	/* clean-up worker */
 	private Thread cleaner;
 	private Thread gcTimer;
-
+	
 	public ObjectPool(Storage<K, byte[]> offHeapStorage) {
 		this(Type.WEAK,offHeapStorage);
 	}
@@ -221,6 +221,10 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		});
 	}
 
+	/**
+	 * Removes all of the elements from underlying and internal storages.
+	 * This instance of ObjectPool can no longer be used after #clear() is called.
+	 */
 	@Override
 	public void clear() {
 		try {
@@ -237,7 +241,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		init(type, offHeapStorage);
+//		init(type, offHeapStorage);
 	}
 
 	@Override
@@ -275,7 +279,6 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		init((Type) obj[1], (Storage<K, byte[]>) obj[0]);
 	}
 
-	
 	public class ValueFactory {
 		public Reference<E> make(K key, E value, ReferenceQueue<E> rQueue) {
 			return (ObjectPool.this.type.equals(Type.SOFT)) ? new ValueSoft(key,value) : new ValueWeak(key,value);

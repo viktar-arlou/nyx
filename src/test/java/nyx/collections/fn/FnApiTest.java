@@ -21,24 +21,23 @@ public class FnApiTest {
 		Assert.assertFalse(list1.contains(null));
 	    /* A field of an anonymous class can be used to accumulate and retrieve
 		 * computation result */
-		int sum = Fn.on(list1).each().exec(new IFn<Integer, Void>() {
+		int sum = Fn.on(list1).forEach(new Fn.NoRet<Integer>() {
 			int counter = 0;
 			@Override
-			public Void apply(Integer t) {
-				counter += t;
-				return null;
-			}
+			public void func0(Integer t) { counter += t; }
 		}).counter;
 		Assert.assertEquals(sum, 45);
 		list1 = Fn.on(list1).filter(Fn.<Integer>range(0,5)).get();
-		sum = Fn.on(list1).each().exec(new IFn<Integer, Void>() {
+		sum = Fn.on(list1).forEach(new Fn.NoRet<Integer>() {
 			int counter = 0;
-			@Override
-			public Void apply(Integer t) {
-				counter += t;
-				return null;
-			}
+			@Override public void func0(Integer t) { counter += t; }
 		}).counter;
 		Assert.assertEquals(sum, 15);
+		
+		Fn.on(list1).mapTo(new IFn<Integer, String>() {
+			@Override public String func(Integer t) { return t.toString(); }
+		}).forEach(new Fn.NoRet<String>() {
+			@Override public void func0(String t) { System.out.println(t); }
+		});
 	}
 }

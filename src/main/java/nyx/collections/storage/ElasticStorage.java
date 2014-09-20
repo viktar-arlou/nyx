@@ -6,7 +6,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -85,8 +84,8 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
 	@Override
 	public byte[] read(E id) {
+		lock.readLock().lock();
 		try {
-			lock.readLock().lock();
 			if (!elementsLocation.containsKey(id)) return null;
 			long[] location = elementsLocation.get(id);
 			assert location.length == 2;
@@ -111,8 +110,8 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
 	@Override
 	public void clear() {
+		lock.writeLock().lock();
 		try {
-			lock.writeLock().lock();
 			this.elementsLocation.clear();
 			for (ByteBuffer byteBuffer : dbbs)
 				deallocDirectByteBuffer(byteBuffer);
@@ -181,8 +180,8 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	 */
 	@Override
 	public byte[] delete(E id) {
+		lock.writeLock().lock();
 		try {
-			lock.writeLock().lock();
 			byte[] res = read(id);
 			this.elementsLocation.remove(id);
 			return res;
@@ -203,8 +202,8 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
 	@Override
 	public byte[] update(E key, byte[] value) {
+		lock.writeLock().lock();
 		try {
-			lock.writeLock().lock();
 			byte[] old = delete(key);
 			create(key, value);
 			return old;
@@ -225,8 +224,8 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	public void purge() {
 		// Basic implementation - copies all remaining elements into new
 		// byte buffers and removes old ones. Doubles
+		lock.writeLock().lock();
 		try {
-			lock.writeLock().lock();
 			ElasticStorage<E> copy = new ElasticStorage<E>(this.capacity);
 			for (Entry<E, long[]> entry : elementsLocation.entrySet()) {
 				copy.create(entry.getKey(), read(entry.getKey()));

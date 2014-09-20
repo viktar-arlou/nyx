@@ -5,11 +5,11 @@ import java.util.Iterator;
 
 import nyx.collections.NyxList;
 
-public class Fn<T> implements ICollection<T> {
+public class Fn<E> implements ICollection<E> {
 
-	private final Collection<T> collection;
+	private final Collection<E> collection;
 	
-	public Fn(Collection<T> collection) {
+	public Fn(Collection<E> collection) {
 		this.collection = collection;
 	}
 	
@@ -17,63 +17,64 @@ public class Fn<T> implements ICollection<T> {
 		return new Fn<T>(collection);
 	}
 	
-	@Override
-	public IEx<T> each() {
-		return new IEx<T>() {
-
-			@Override
-			public <E extends IFn<T, ?>> E exec(E iFunc) {
-				for (Iterator<T> iterator = collection.iterator(); iterator.hasNext();) 
-					iFunc.apply((T) iterator.next());
-				return iFunc;
-			}
-
-			@Override
-			public <Q, E extends IFn<T, Q>> ICollection<Q> mapTo(E iFunc) {
-				NyxList<Q> mappedCollection = new NyxList<>();
-				for (Iterator<T> iterator = collection.iterator(); iterator .hasNext();) 
-					mappedCollection.add(iFunc.apply((T) iterator.next()));
-				return new Fn<Q>(mappedCollection);
-			}};
-	}
-	
 	public static <E> IFn<E, Boolean> notNull() {
 		return new IFn<E, Boolean>() {
-			@Override public Boolean apply(E t) { return t != null; }
+			@Override public Boolean func(E t) { return t != null; }
 		};
 	}
 
 	public static <E extends Comparable<E>> IFn<E, Boolean> range(final E from, final E to) {
 		return new IFn<E, Boolean>() {
-			@Override public Boolean apply(E t) { return t.compareTo(from)>=0 && t.compareTo(to)<=0; }
+			@Override public Boolean func(E t) { return t.compareTo(from)>=0 && t.compareTo(to)<=0; }
 		};
 	}
 
 	
 	// Constants
 	public static IFn<String,String> ToLowerCase = new IFn<String, String>() {
-		@Override public String apply(String t) { return t.toLowerCase(); }
+		@Override public String func(String t) { return t.toLowerCase(); }
 	};
 		
 	public static IFn<String, String> ToUpperCase = new IFn<String, String>() {
-		@Override public String apply(String t) { return t.toLowerCase(); }
+		@Override public String func(String t) { return t.toLowerCase(); }
 	};
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <E extends Collection<T>> E get() {
-		return (E) this.collection;
+	public <T extends Collection<E>> T get() {
+		return (T) this.collection;
 	}
 
 	@Override
-	public <E extends IFn<T, Boolean>> ICollection<T> filter(E iFunc) {
-		NyxList<T> filteredCollection = new NyxList<>();
-		for (Iterator<T> iterator = collection.iterator(); iterator.hasNext();) {
-			T element = (T) iterator.next();
-			if (iFunc.apply(element).booleanValue())
+	public <T extends IFn<E, Boolean>> ICollection<E> filter(T iFunc) {
+		NyxList<E> filteredCollection = new NyxList<>();
+		for (Iterator<E> iterator = collection.iterator(); iterator.hasNext();) {
+			E element = (E) iterator.next();
+			if (iFunc.func(element).booleanValue())
 				filteredCollection.add(element);
 		}
-		return new Fn<T>(filteredCollection);
+		return new Fn<E>(filteredCollection);
+	}
+
+	@Override
+	public <Q, T extends IFn<E, Q>> ICollection<Q> mapTo(T iFunc) {
+			NyxList<Q> mappedCollection = new NyxList<>();
+			for (Iterator<E> iterator = collection.iterator(); iterator .hasNext();) 
+				mappedCollection.add(iFunc.func((E) iterator.next()));
+			return new Fn<Q>(mappedCollection);
 	}
 	
+	@Override
+	public <T extends IFn<E, ?>> T forEach(T iFunc) {
+		for (Iterator<E> iterator = collection.iterator(); iterator.hasNext();) 
+			iFunc.func((E) iterator.next());
+		return iFunc;
+	}
+
+	public static abstract class NoRet<T> implements IFn<T, Void> {
+		@Override public final Void func(T t) { func0(t); return null; }
+		abstract public void func0(T t);
+	}
+
 }
+
