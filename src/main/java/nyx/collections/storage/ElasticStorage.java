@@ -32,7 +32,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	private transient ReadWriteLock lock = new ReentrantReadWriteLock();
 	private long cursor = 0;
 	private int capacity = Const._1Kb * 4; // default chunk size is 4Kb
-	private Map<E, long[]> elementsLocation = new HashMap<>();
+	private Map<E, long[]> elementsLocation = Acme.chashmap();
 
 	/**
 	 * Creates instance with a default initial capacity (4Kb).
@@ -51,8 +51,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	 *             if {@code capacity < 4096}
 	 */
 	public ElasticStorage(int capacity) {
-		if (capacity < Const._1Kb * 4)
-			throw new IllegalArgumentException();
+		if (capacity < Const._1Kb * 4) throw new IllegalArgumentException();
 		this.capacity = capacity;
 	}
 
@@ -60,11 +59,11 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	public byte[] create(E id, byte[] addme) {
 		if (elementsLocation.containsKey(id)) 
 			throw new IllegalArgumentException();
+		lock.writeLock().lock();
 		try {
-			lock.writeLock().lock();
-			int commited = 0;
 			long[] location = Acme.along2();
 			location[0] = this.cursor;
+			int commited = 0;
 			while (commited < addme.length) {
 				ByteBuffer cbuf = getBuffer();
 				cbuf.position(currentOffset());
