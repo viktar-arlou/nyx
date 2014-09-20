@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -22,7 +22,6 @@ import nyx.collections.converter.ConverterFactory;
 import nyx.collections.storage.Storage;
 import nyx.collections.vm.GCDetector;
 import nyx.collections.vm.GCDetector.Callback;
-import nyx.collections.vm.GCDetector.NotAvailable;
 
 /**
  * This class represents a pool of objects and implements
@@ -49,16 +48,17 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	
 	/* asynchronous Storage#create */
 	private Queue<KeyValue<K,E>> storageQueue;
-	private Lock storageLock = new ReentrantLock();
-	private Condition sqProcess = storageLock.newCondition();
-	private Condition sqEmpty = storageLock.newCondition();
+	private Lock storageLock;
+	private Condition sqProcess;
+	private Condition sqEmpty;
 	private Thread storageMover;
 	
 	private Type type;
 	private ValueFactory vf;
 	
-	/* clean-up facility variables */
+	/* clean-up worker */
 	private Thread cleaner;
+	private Thread gcTimer;
 
 	public ObjectPool(Storage<K, byte[]> offHeapStorage) {
 		this(Type.WEAK,offHeapStorage);
@@ -70,7 +70,6 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 
 	private void init(Type type, Storage<K, byte[]> offHeapStorage) {
 		this.offHeapStorage = offHeapStorage;
-		
 		this.rQueue = new ReferenceQueue<>();
 		this.rqLock = new ReentrantLock();
 		this.storageQueue = new ConcurrentLinkedQueue<>();
@@ -82,29 +81,47 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		this.type = type;
 		try {
 			GCDetector.listen(this);
-		} catch (NotAvailable e) {
-			// TODO: run worker thread for reference queue cleaning
+		} catch (GCDetector.NotAvailable e) {
+			// obsolete JVM without GC detection capabilities
+			startGCTimer();
 		}
 		startCleaner();
 		startMover();		
+	}
+
+	private void startGCTimer() {
+		this.gcTimer = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				while (!Thread.currentThread().isInterrupted()) {
+					try {
+						TimeUnit.SECONDS.sleep(10);
+						handle(null);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
+				}
+			}});
+		this.gcTimer.setDaemon(true);
+		this.gcTimer.start();
 	}
 
 	private void startMover() {
 		this.storageMover = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				while (!Thread.currentThread().isInterrupted())
+				while (!Thread.currentThread().isInterrupted()) {
+					storageLock.lock();
 					try {
-						storageLock.lock();
 						while (storageQueue.isEmpty()) sqProcess.await();
 						KeyValue<K, E> kv;
 						while ((kv = storageQueue.poll())!=null)
 							ObjectPool.this.offHeapStorage.create(kv.key, converter.encode(kv.value));
 						sqEmpty.signalAll();
-						storageLock.unlock();
 					} catch (InterruptedException e) {
 						Thread.currentThread().interrupt();
-					}
+					} finally { storageLock.unlock(); }
+				}
 			}
 		});
 		storageMover.setDaemon(true);
@@ -118,14 +135,14 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 				public void run() {
 					while (!Thread.currentThread().isInterrupted()) {
 						try {
-							rqLock.lock();
+							rqLock.lock(); 
 							Value<K> qe;
 							while ((qe = (Value<K>) rQueue.poll()) == null) notEmpty.await();
 							do { objectPool.remove(qe.getKey()); } while ((qe = (Value<K>) rQueue.poll()) != null);
-							rqLock.unlock();
 						} catch (InterruptedException e) {
+							// restore interrupted status
 							Thread.currentThread().interrupt();
-						}
+						} finally { rqLock.unlock(); }
 					}
 				}
 			});
@@ -139,12 +156,12 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	}
 
 	public <T> T syncStorage(IntFn<T> fn ) {
+		storageLock.lock();
 		try {
-			this.storageLock.lock();
 			if (!storageQueue.isEmpty()) sqEmpty.await();
 			return fn.run();
 		} catch (InterruptedException e) {
-		} finally { this.storageLock.unlock(); }
+		} finally { storageLock.unlock(); }
 		return null;
 	}
 	
@@ -209,6 +226,10 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		try {
 			storageMover.interrupt();
 			cleaner.interrupt();
+			if (this.gcTimer!=null) {
+				this.gcTimer.interrupt();
+				this.gcTimer.join();
+			}
 			if (storageMover.isAlive()) storageMover.join();
 			if (cleaner.isAlive()) cleaner.join();
 			objectPool.clear();
