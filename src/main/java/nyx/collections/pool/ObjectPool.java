@@ -59,7 +59,6 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	
 	/* clean-up facility variables */
 	private Thread cleaner;
-	private volatile boolean stopWorkers = false;
 
 	public ObjectPool(Storage<K, byte[]> offHeapStorage) {
 		this(Type.WEAK,offHeapStorage);
@@ -81,7 +80,6 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		this.notEmpty = rqLock.newCondition();
 		this.vf = new ValueFactory();
 		this.type = type;
-		stopWorkers = false;
 		try {
 			GCDetector.listen(this);
 		} catch (NotAvailable e) {
@@ -95,17 +93,17 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		this.storageMover = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				while (!stopWorkers)
+				while (!Thread.currentThread().isInterrupted())
 					try {
 						storageLock.lock();
-						while (!stopWorkers && storageQueue.isEmpty())
-							sqProcess.await();
+						while (storageQueue.isEmpty()) sqProcess.await();
 						KeyValue<K, E> kv;
 						while ((kv = storageQueue.poll())!=null)
 							ObjectPool.this.offHeapStorage.create(kv.key, converter.encode(kv.value));
 						sqEmpty.signalAll();
 						storageLock.unlock();
 					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
 					}
 			}
 		});
@@ -116,12 +114,21 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	private void startCleaner() {
 		if (!isNone()) {
 			this.cleaner = new Thread(new Runnable() {
-				@Override public void run() {
-					while (!stopWorkers) 
-						try { 
-							clean(); 
-						} catch (InterruptedException e) { } }
-				});
+				@Override
+				public void run() {
+					while (!Thread.currentThread().isInterrupted()) {
+						try {
+							rqLock.lock();
+							Value<K> qe;
+							while ((qe = (Value<K>) rQueue.poll()) == null) notEmpty.await();
+							do { objectPool.remove(qe.getKey()); } while ((qe = (Value<K>) rQueue.poll()) != null);
+							rqLock.unlock();
+						} catch (InterruptedException e) {
+							Thread.currentThread().interrupt();
+						}
+					}
+				}
+			});
 			cleaner.setDaemon(true);
 			cleaner.start();
 		}
@@ -134,8 +141,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	public <T> T syncStorage(IntFn<T> fn ) {
 		try {
 			this.storageLock.lock();
-			if (!storageQueue.isEmpty())
-				sqEmpty.await();
+			if (!storageQueue.isEmpty()) sqEmpty.await();
 			return fn.run();
 		} catch (InterruptedException e) {
 		} finally { this.storageLock.unlock(); }
@@ -180,20 +186,6 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		});
 	}
 
-	@SuppressWarnings("unchecked")
-	public void clean() throws InterruptedException  {
-		rqLock.lock();
-		try {
-			Value<K> qe = null;
-			while ((qe = (Value<K>) rQueue.poll()) == null && !stopWorkers) notEmpty.await();
-			do { objectPool.remove(qe.getKey()); } while ((qe = (Value<K>) rQueue.poll()) != null);
-		} catch (Exception e) {
-			/* NPE on qe==null is OK */
-		} finally {
-			rqLock.unlock();
-		}
-	}
-
 	/** This method is called after each GC */
 	@Override
 	public void handle(Void e) {
@@ -214,24 +206,15 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 
 	@Override
 	public void clear() {
-		stopWorkers = true;
 		try {
-			storageLock.lock();
-			sqProcess.signal();
-			storageLock.unlock();
-			if (storageMover.isAlive())
-				storageMover.join();
-			rqLock.lock();
-			notEmpty.signal();
-			rqLock.unlock();
-			if (cleaner.isAlive())
-				cleaner.join();
+			storageMover.interrupt();
+			cleaner.interrupt();
+			if (storageMover.isAlive()) storageMover.join();
+			if (cleaner.isAlive()) cleaner.join();
 			objectPool.clear();
 			offHeapStorage.clear();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-		} finally {
-			stopWorkers = false;
 		}
 		init(type, offHeapStorage);
 	}
