@@ -116,7 +116,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 						while (storageQueue.isEmpty()) sqProcess.await();
 						KeyValue<K, E> kv;
 						while ((kv = storageQueue.poll())!=null)
-							ObjectPool.this.offHeapStorage.create(kv.key, converter.encode(kv.value));
+							ObjectPool.this.offHeapStorage.put(kv.key, converter.encode(kv.value));
 						sqEmpty.signalAll();
 					} catch (InterruptedException e) {
 						Thread.currentThread().interrupt();
@@ -166,7 +166,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	}
 	
 	@Override
-	public E read(final K key) {
+	public E get(final K key) {
 		return syncStorage(new IntFn<E>() {
 			@Override
 			public E run() {
@@ -175,14 +175,14 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 					objectPool.put(key,
 							new WeakReference<>(res = converter
 									.decode(ObjectPool.this.offHeapStorage
-											.read(key))));
+											.get(key))));
 				return res;
 			}
 		});
 	}
 
 	@Override
-	public E create(K key, E value) {
+	public E put(K key, E value) {
 		if (!isNone()) this.objectPool.put(key, vf.make(key, value, rQueue));
 		try {
 			storageLock.lock();
@@ -193,10 +193,10 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	}
 
 	@Override
-	public E delete(final K key) {
+	public E remove(final K key) {
 		return syncStorage(new IntFn<E>() {
 			@Override public E run() {
-				E res = converter.decode(ObjectPool.this.offHeapStorage.delete(key));
+				E res = converter.decode(ObjectPool.this.offHeapStorage.remove(key));
 				ObjectPool.this.objectPool.remove(key);
 				return res;
 			}
@@ -303,6 +303,20 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		public K getKey() { return key; }
 	}
 	
+
+	@Override
+	public boolean contains(final E value) {
+		return syncStorage(new IntFn<Boolean>() {
+			@Override
+			public Boolean run() {
+				for (K key : offHeapStorage.keySet())
+					if (converter.decode(offHeapStorage.get(key)).equals(value))
+						return true;
+				return false;
+			}
+		}).booleanValue();
+	}
+
 	interface Value<K> { K getKey(); }
-	
+
 }

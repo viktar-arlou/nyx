@@ -117,7 +117,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public boolean add(E e) {
 		try {
 			lock.writeLock().lock();
-			storage.create(size, e);
+			storage.put(size, e);
 			this.elements.add(size++);
 		} finally {
 			lock.writeLock().unlock();
@@ -129,7 +129,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public void add(int index, E element) {
 		try {
 			lock.writeLock().lock();
-			this.storage.create(size, element);
+			this.storage.put(size, element);
 			this.elements.add(index, size++);
 		} finally {
 			lock.writeLock().unlock();
@@ -144,7 +144,7 @@ public class NyxList<E> implements List<E>, Serializable {
 			Iterator<Integer> iter = elements.iterator();
 			while (iter.hasNext()) {
 				Integer key = iter.next();
-				E nextElement = this.storage.read(key);
+				E nextElement = this.storage.get(key);
 				if (nextElement == obj || nextElement.equals(obj)) {
 					iter.remove();
 					deleted = true;
@@ -228,7 +228,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	@Override
 	public E get(int index) {
 		checkBounds(index);
-		return storage.read(index);
+		return storage.get(index);
 	}
 
 	@Override
@@ -248,7 +248,7 @@ public class NyxList<E> implements List<E>, Serializable {
 		try {
 			lock.writeLock().lock();
 			checkBounds(index);
-			return this.storage.delete(this.elements.get(index));
+			return this.storage.remove(this.elements.get(index));
 		} finally {
 			checkMods();
 			lock.writeLock().unlock();
@@ -309,7 +309,7 @@ public class NyxList<E> implements List<E>, Serializable {
 			lock.readLock().lock();
 			List<E> result = new ArrayList<>(toIndex - fromIndex);
 			for (Integer id : this.elements.subList(fromIndex, toIndex))
-				result.add(storage.read(id));
+				result.add(storage.get(id));
 			return result;
 		} finally {
 			lock.readLock().unlock();

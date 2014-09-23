@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -28,6 +29,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	private transient List<ByteBuffer> dbbs = new ArrayList<>();
 	private long cursor = 0;
 	private int capacity = Const._1Kb * 4; // default chunk size is 4Kb
+	/* long array contains 3 elements - from, to and hashCode*/
 	private Map<E, long[]> elementsLocation = Acme.chashmap();
 
 	private Object wlock = new Object();
@@ -54,12 +56,12 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	}
 
 	@Override
-	public byte[] create(E id, byte[] addme) {
+	public byte[] put(E id, byte[] addme) {
 		if (elementsLocation.containsKey(id)) 
 			throw new IllegalArgumentException();
 		synchronized (wlock) {
 			try {
-				long[] location = Acme.along2();
+				long[] location = Acme.along(3);
 				location[0] = this.cursor;
 				int commited = 0;
 				while (commited < addme.length) {
@@ -72,6 +74,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 					commited += size;
 				}
 				location[1] = this.cursor;
+				location[2] = Arrays.hashCode(addme);
 				elementsLocation.put(id, location);
 				return addme;
 			} catch (Exception e) {
@@ -81,10 +84,10 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	}
 
 	@Override
-	public byte[] read(E id) {
+	public byte[] get(E id) {
 		if (!elementsLocation.containsKey(id)) return null;
 		long[] location = elementsLocation.get(id);
-		assert location.length == 2;
+		assert location.length == 3;
 		byte[] result = new byte[(int) (location[1] - location[0])];
 		int readed = 0;
 		while (readed < result.length) {
@@ -166,8 +169,8 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 	 *            the id of the object to be removed
 	 */
 	@Override
-	public byte[] delete(E id) {
-		byte[] res = read(id);
+	public byte[] remove(E id) {
+		byte[] res = get(id);
 		this.elementsLocation.remove(id);
 		return res;
 	}
@@ -184,14 +187,14 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
 	@Override
 	public byte[] update(E key, byte[] value) {
-		byte[] old = delete(key);
-		create(key, value);
+		byte[] old = remove(key);
+		put(key, value);
 		return old;
 	}
 
 	/**
 	 * Removes all elements previously marked for deletion (by
-	 * {@link #delete(Object)} method) from this storage.
+	 * {@link #remove(Object)} method) from this storage.
 	 * 
 	 * This is very basic implementation which needs to be improved in the new
 	 * versions of Nyx Collections. It simply copies all remaining elements into
@@ -203,7 +206,7 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 		// byte buffers and removes old ones. Doubles
 		ElasticStorage<E> copy = new ElasticStorage<E>(this.capacity);
 		for (Entry<E, long[]> entry : elementsLocation.entrySet()) {
-			copy.create(entry.getKey(), read(entry.getKey()));
+			copy.put(entry.getKey(), get(entry.getKey()));
 		}
 		// deallocate off-heap memory
 		for (ByteBuffer oldBuffer : this.dbbs)
@@ -241,5 +244,19 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 			this.dbbs.add(byteBuffer);
 		}
 	}
-	
+
+	/**
+	 * Binary comparison
+	 */
+	@Override
+	public boolean contains(byte[] value) {
+		// check hashCodes first - than fetch
+		int hashCode = Arrays.hashCode(value);
+		for (Entry<E, long[]> entry : elementsLocation.entrySet()) 
+			if (entry.getValue()[2] == hashCode
+					&& Arrays.equals(value, get(entry.getKey())))
+				return true;
+		return false;
+	}
+
 }

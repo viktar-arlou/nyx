@@ -64,7 +64,7 @@ public class NyxMap<K, V> implements Map<K, V> {
 	public V get(Object key) {
 		try {
 			lock.readLock().lock();
-			return storage.read((K) key);
+			return storage.get((K) key);
 		} finally {
 			lock.readLock().unlock();
 		}
@@ -73,14 +73,14 @@ public class NyxMap<K, V> implements Map<K, V> {
 	@Override
 	public V put(K key, V value) {
 		V prevValue = checkMods(remove(key));
-		storage.create(key, value);
+		storage.put(key, value);
 		return prevValue;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public V remove(Object key) {
-		return checkMods(storage.delete((K) key));
+		return checkMods(storage.remove((K) key));
 	}
 
 	/**
@@ -122,7 +122,7 @@ public class NyxMap<K, V> implements Map<K, V> {
 	@Override
 	public Collection<V> values() {
 		List<V> result = new ArrayList<>(storage.size());
-		for (K key : this.storage.keySet()) result.add(storage.read(key));
+		for (K key : this.storage.keySet()) result.add(storage.get(key));
 		return result;
 	}
 

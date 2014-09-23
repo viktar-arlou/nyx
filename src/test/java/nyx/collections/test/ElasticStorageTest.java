@@ -16,7 +16,7 @@ public class ElasticStorageTest {
 		byte[] addme = new byte[1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.create(i, addme);
+			es.put(i, addme);
 		}
 		es.clear();
 	}
@@ -27,7 +27,7 @@ public class ElasticStorageTest {
 		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.create(i, addme);
+			es.put(i, addme);
 		}
 		es.clear();
 	}
@@ -38,12 +38,12 @@ public class ElasticStorageTest {
 		byte[] addme = new byte[1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.create(i, addme);
+			es.put(i, addme);
 		}
 		// compare arrays
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			byte[] fromEs = es.read(i);
+			byte[] fromEs = es.get(i);
 			assertArrayEquals(addme, fromEs);
 		}
 		es.clear();
@@ -55,12 +55,12 @@ public class ElasticStorageTest {
 		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.create(i, addme);
+			es.put(i, addme);
 		}
 		// compare arrays
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			byte[] fromEs = es.read(i);
+			byte[] fromEs = es.get(i);
 			assertArrayEquals(addme, fromEs);
 		}
 		es.clear();
@@ -72,14 +72,14 @@ public class ElasticStorageTest {
 		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.create(i, addme);
+			es.put(i, addme);
 		}
 		ElasticStorage<Integer> es2 = (ElasticStorage<Integer>) NyxListTest
 				.deserialize(NyxListTest.serialize(es));
 		// compare arrays
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			byte[] fromEs = es2.read(i);
+			byte[] fromEs = es2.get(i);
 			assertArrayEquals(addme, fromEs);
 		}
 		es.clear();
@@ -91,10 +91,10 @@ public class ElasticStorageTest {
 		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
-			es.create(i, addme);
+			es.put(i, addme);
 		}
 		for (int i = 5; i < 15; i++)
-			es.delete(i);
+			es.remove(i);
 		// force deletion
 		es.purge();
 		Range<Integer> _5to15 = Range.make(5, 14);
@@ -105,7 +105,7 @@ public class ElasticStorageTest {
 			if (_5to15.within(i))
 				continue;
 			Arrays.fill(addme, (byte) i);
-			byte[] fromEs = es.read(i);
+			byte[] fromEs = es.get(i);
 			assertArrayEquals(addme, fromEs);
 		}
 		es.clear();
