@@ -11,9 +11,7 @@ public class NyxSetTest {
 
 	@Test
 	public void testDoubleAdd() {
-		Set<String> test = new NyxSet<>();
-		test.add("test1");
-		test.add("test1");
+		Set<String> test = new NyxSet<String>() {{ add("test1"); add("test1"); }};
 		Assert.assertEquals(test.size(), 1);
 	}
 	
