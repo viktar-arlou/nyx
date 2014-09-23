@@ -34,10 +34,12 @@ public class FnApiTest {
 		}).counter;
 		Assert.assertEquals(sum, 15);
 		
-		Fn.on(list1).mapTo(new IFn<Integer, String>() {
+		String allStrs = Fn.on(list1).mapTo(new IFn<Integer, String>() {
 			@Override public String func(Integer t) { return t.toString(); }
 		}).forEach(new Fn.NoRet<String>() {
-			@Override public void func0(String t) { System.out.println(t); }
-		});
+			String allLines = "";
+			@Override public void func0(String t) { allLines+=t; }
+		}).allLines;
+		Assert.assertNotNull(allStrs);
 	}
 }
