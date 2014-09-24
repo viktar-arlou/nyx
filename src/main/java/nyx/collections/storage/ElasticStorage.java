@@ -57,29 +57,27 @@ public class ElasticStorage<E> implements Storage<E, byte[]>, Serializable {
 
 	@Override
 	public byte[] put(E id, byte[] addme) {
-		if (elementsLocation.containsKey(id)) 
+		if (elementsLocation.containsKey(id))
 			throw new IllegalArgumentException();
-		synchronized (wlock) {
-			try {
-				long[] location = Acme.along(3);
-				location[0] = this.cursor;
-				int commited = 0;
+		try {
+			long lCursor = this.cursor;
+			long[] location = new long[] { this.cursor, this.cursor += addme.length, Arrays.hashCode(addme) };
+			int commited = 0;
 				while (commited < addme.length) {
-					ByteBuffer cbuf = getBuffer();
-					cbuf.position(currentOffset());
-					int spaceLeft = capacity - cbuf.position();
-					int size = Math.min(spaceLeft, addme.length - commited);
-					cbuf.put(addme, commited, size);
-					this.cursor += size;
-					commited += size;
+					ByteBuffer cbuf = bufferForPosition(lCursor);
+					synchronized (cbuf) {
+						cbuf.position(offsetForPosition(lCursor));
+						int spaceLeft = capacity - cbuf.position();
+						int size = Math.min(spaceLeft, addme.length - commited);
+						cbuf.put(addme, commited, size);
+						lCursor += size;
+						commited += size;
+					}
 				}
-				location[1] = this.cursor;
-				location[2] = Arrays.hashCode(addme);
-				elementsLocation.put(id, location);
-				return addme;
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			elementsLocation.put(id, location);
+			return addme;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 	}
 
