@@ -10,7 +10,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import nyx.collections.pool.ObjectPool;
-import nyx.collections.storage.ElasticStorage;
+import nyx.collections.storage.ElasticByteStorage;
 import nyx.collections.storage.Storage;
 
 /**
@@ -34,7 +34,7 @@ public class NyxMap<K, V> implements Map<K, V> {
 	
 	public NyxMap(int capacity) {
 		if (capacity<1) throw new IllegalArgumentException();
-		this.storage = new ObjectPool<K,V>(new ElasticStorage<K>());
+		this.storage = new ObjectPool<K,V>(new ElasticByteStorage<K>());
 	}
 
 	@Override

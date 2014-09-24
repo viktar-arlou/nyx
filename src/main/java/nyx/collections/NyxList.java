@@ -15,7 +15,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import nyx.collections.pool.ObjectPool;
 import nyx.collections.pool.ObjectPool.Type;
-import nyx.collections.storage.ElasticStorage;
+import nyx.collections.storage.ElasticByteStorage;
 import nyx.collections.storage.Storage;
 
 /**
@@ -48,7 +48,7 @@ public class NyxList<E> implements List<E>, Serializable {
 	public NyxList(int capacity, int memSize, Type poolType) {
 		if (capacity < 1)
 			throw new IllegalArgumentException();
-		this.storage = new ObjectPool<Integer,E>(poolType, new ElasticStorage<Integer>());
+		this.storage = new ObjectPool<Integer,E>(poolType, new ElasticByteStorage<Integer>());
 		this.elements = new ArrayList<>(capacity);
 	}
 	

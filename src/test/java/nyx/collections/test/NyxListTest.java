@@ -174,8 +174,7 @@ public class NyxListTest {
 		for (int i = 0;i < athr.length; i++) {
 		final int z = i;
 		athr[i] = new Thread(new Runnable(){
-			@Override
-			public void run() {
+			@Override public void run() {
 				for (int y = 0; y < nRecords; y++)	{
 					nyx.add(""+z);
 					atotal.addAndGet(z);

@@ -2,7 +2,7 @@ package nyx.collections.test;
 
 import java.util.Arrays;
 
-import nyx.collections.storage.ElasticStorage;
+import nyx.collections.storage.ElasticByteStorage;
 
 import org.junit.*;
 
@@ -12,7 +12,7 @@ public class ElasticStorageTest {
 
 	@Test
 	public void testAppendSmall() {
-		ElasticStorage<Integer> es = new ElasticStorage<>();
+		ElasticByteStorage<Integer> es = new ElasticByteStorage<>();
 		byte[] addme = new byte[1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
@@ -23,7 +23,7 @@ public class ElasticStorageTest {
 
 	@Test
 	public void testAppendBig() {
-		ElasticStorage<Integer> es = new ElasticStorage<>();
+		ElasticByteStorage<Integer> es = new ElasticByteStorage<>();
 		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
@@ -34,7 +34,7 @@ public class ElasticStorageTest {
 
 	@Test
 	public void testRetrieveSmall() {
-		ElasticStorage<Integer> es = new ElasticStorage<>();
+		ElasticByteStorage<Integer> es = new ElasticByteStorage<>();
 		byte[] addme = new byte[1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
@@ -51,7 +51,7 @@ public class ElasticStorageTest {
 
 	@Test
 	public void testRetrieveBig() {
-		ElasticStorage<Integer> es = new ElasticStorage<>();
+		ElasticByteStorage<Integer> es = new ElasticByteStorage<>();
 		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
@@ -68,13 +68,13 @@ public class ElasticStorageTest {
 
 	@Test
 	public void testSerialization() throws Exception {
-		ElasticStorage<Integer> es = new ElasticStorage<>();
+		ElasticByteStorage<Integer> es = new ElasticByteStorage<>();
 		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
 			es.put(i, addme);
 		}
-		ElasticStorage<Integer> es2 = (ElasticStorage<Integer>) NyxListTest
+		ElasticByteStorage<Integer> es2 = (ElasticByteStorage<Integer>) NyxListTest
 				.deserialize(NyxListTest.serialize(es));
 		// compare arrays
 		for (int i = 0; i < 20; i++) {
@@ -87,7 +87,7 @@ public class ElasticStorageTest {
 
 	@Test
 	public void testPurge() throws Exception {
-		ElasticStorage<Integer> es = new ElasticStorage<>();
+		ElasticByteStorage<Integer> es = new ElasticByteStorage<>();
 		byte[] addme = new byte[100 * 1024];
 		for (int i = 0; i < 20; i++) {
 			Arrays.fill(addme, (byte) i);
