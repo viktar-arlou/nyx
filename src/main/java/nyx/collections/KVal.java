@@ -2,12 +2,12 @@ package nyx.collections;
 
 import java.util.Map;
 
-public class KeyValue<K, V> implements Map.Entry<K, V> {
+public class KVal<K, V> implements Map.Entry<K, V> {
 
 	public K key;
 	public V value;
 	
-	public KeyValue(K key, V value) {
+	public KVal(K key, V value) {
 		this.value = value;
 		this.key = key;
 	}

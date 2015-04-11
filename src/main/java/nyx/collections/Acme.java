@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- *  A Class that Makes Everything.
+ *  <b>A</b> <b>C</b>lass that <b>M</b>akes <b>E</b>verything.
  * 
  * @author varlou@gmail.com
  */

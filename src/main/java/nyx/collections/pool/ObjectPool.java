@@ -16,7 +16,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import nyx.collections.Acme;
-import nyx.collections.KeyValue;
+import nyx.collections.KVal;
 import nyx.collections.converter.Converter;
 import nyx.collections.converter.ConverterFactory;
 import nyx.collections.storage.Storage;
@@ -47,11 +47,11 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	private Condition notEmpty;
 	
 	/* asynchronous Storage#create */
-	private Queue<KeyValue<K,E>> storageQueue;
+	private Queue<KVal<K,E>> storageQueue;
 	private Lock storageLock;
 	private Condition sqProcess;
 	private Condition sqEmpty;
-	private Thread storageMover;
+	private Thread objectRelocator;
 	
 	private Type type;
 	private ValueFactory vf;
@@ -86,7 +86,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 			startGCTimer();
 		}
 		startCleaner();
-		startMover();		
+		startRelocator();		
 	}
 
 	private void startGCTimer() {
@@ -106,15 +106,15 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		this.gcTimer.start();
 	}
 
-	private void startMover() {
-		this.storageMover = new Thread(new Runnable() {
+	private void startRelocator() {
+		this.objectRelocator = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				while (!Thread.currentThread().isInterrupted()) {
 					storageLock.lock();
 					try {
 						while (storageQueue.isEmpty()) sqProcess.await();
-						KeyValue<K, E> kv;
+						KVal<K, E> kv;
 						while ((kv = storageQueue.poll())!=null)
 							ObjectPool.this.offHeapStorage.put(kv.key, converter.encode(kv.value));
 						sqEmpty.signalAll();
@@ -124,8 +124,8 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 				}
 			}
 		});
-		storageMover.setDaemon(true);
-		storageMover.start();
+		objectRelocator.setDaemon(true);
+		objectRelocator.start();
 	}
 
 	private void startCleaner() {
@@ -186,7 +186,7 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 		if (!isNone()) this.objectPool.put(key, vf.make(key, value, rQueue));
 		try {
 			storageLock.lock();
-			storageQueue.add(new KeyValue<>(key,value));
+			storageQueue.add(new KVal<>(key,value));
 			sqProcess.signal();
 		} finally { storageLock.unlock(); }
 		return value;
@@ -228,13 +228,13 @@ public class ObjectPool<K, E> implements Storage<K, E>, Callback<Void>, Serializ
 	@Override
 	public void clear() {
 		try {
-			storageMover.interrupt();
+			objectRelocator.interrupt();
 			cleaner.interrupt();
 			if (this.gcTimer!=null) {
 				this.gcTimer.interrupt();
 				this.gcTimer.join();
 			}
-			if (storageMover.isAlive()) storageMover.join();
+			if (objectRelocator.isAlive()) objectRelocator.join();
 			if (cleaner.isAlive()) cleaner.join();
 			objectPool.clear();
 			offHeapStorage.clear();

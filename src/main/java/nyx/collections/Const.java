@@ -2,6 +2,12 @@ package nyx.collections;
 
 import java.io.Serializable;
 
+/**
+ * Various Nyx constants 
+ * 
+ * @author varlou@gmail.com
+ *
+ */
 public class Const {
 
 	public static int _1Mb = 1 << 20;
@@ -12,9 +18,9 @@ public class Const {
 	public static <E> E maskNull(E e) { return e!=null ? e : Const.<E>nil(); }
 
 	/**
-	 * This class represents a <b>{@code null}</b> value for the use inside Nyx
-	 * collections. It is implemented as serialization proof singleton which
-	 * allows {@code ==} or {@code != } comparison operations.
+	 * This class represents a <b>{@code null}</b> value.
+	 * It is implemented as serialization-proof singleton that can be used in 
+	 * {@code ==} or {@code != } comparison operations.
 	 * 
 	 * @author varlou@gmail.com
 	 * @param <T>
@@ -23,7 +29,7 @@ public class Const {
 		private static final long serialVersionUID = 8697657103912545978L;
 		static NULL<?> inst = new NULL<>();
 		private NULL() { }
-		/** Ensures single instance after deserialization. */
+		/** Ensures that only one single instance remains after de/serialization. */
 		private Object readResolve()  { return inst; }
 	}
 }
