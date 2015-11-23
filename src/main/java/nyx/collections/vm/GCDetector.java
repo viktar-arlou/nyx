@@ -18,6 +18,8 @@ import nyx.collections.Acme;
 import com.sun.management.GarbageCollectionNotificationInfo;
 
 /**
+ * Detects when gc starts. Not working on some(?) versions of JVM.
+ * 
  * @author varlou@gmail.com
  */
 public class GCDetector implements NotificationListener {
