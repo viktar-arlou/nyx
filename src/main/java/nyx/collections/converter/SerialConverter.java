@@ -29,17 +29,15 @@ public class SerialConverter<E> implements Converter<E, byte[]>, Serializable {
 	public byte[] encode(E from) {
 		if (from==null) return null;
 		ByteArrayOutputStream baos = BAOS.get();
-		synchronized (baos) {
-			try {
-				ObjectOutputStream os = new ObjectOutputStream(baos);
-				os.writeUnshared(from);
-				return baos.toByteArray();
-			} catch (IOException e1) {
-				BAOS.remove();
-				throw new RuntimeException(e1);
-			} finally {
-				baos.reset();
-			}
+		try {
+			ObjectOutputStream os = new ObjectOutputStream(baos);
+			os.writeUnshared(from);
+			return baos.toByteArray();
+		} catch (IOException e1) {
+			BAOS.remove();
+			throw new RuntimeException(e1);
+		} finally {
+			baos.reset();
 		}
 	}
 
