@@ -1,6 +1,6 @@
 ### Nyx
 
-Nyx Collections is a Java library that offers an implementation of standard Java Collections API with collection elements allocated in the off-heap memory. It is designed to support an XL-size collections which makes it ideal choice for implementing memory and computationally intensive applications.
+Nyx Collections is an experimental Java library that offers an implementation of standard Java Collections API with collection elements allocated in the off-heap memory. It is designed to support an XL-size collections which makes it ideal choice for implementing memory and computationally intensive applications.
 
 ###Features
 * Thread-safe high-speed implementation of List, Set, Map and Queue collections with data elements allocated in off-heap memory. 
@@ -22,16 +22,12 @@ list1 = Fn.on(list1).filter(Fn.<Integer>range(0, 5)).get();
 int sum = Fn.on(list1).forEach(new Fn.NoRet<Integer>() {
 	int counter = 0;
 	@Override
-	public void func0(Integer t) { counter += t; }
+	public void func(Integer t) { counter += t; }
 }).counter;
 ```
 ### Requirements
 
 Nyx can be used on Java 6 (or later) platform. Compatibility with Java 5 is foreseen in future releases. 
-
-### License
-
-* [LGPL](http://www.gnu.org/copyleft/lesser.html) 
 
 ### Releases
 
