@@ -26,10 +26,12 @@ int sum = Fn.on(list1).forEach(new Fn.NoRet<Integer>() {
 ```
 ### Requirements
 
-Nyx can be used on Java 6 (or later) platform.
+Nyx collections can be used with Java 9/10 platform.
 
 ### Releases
 
+* v0.3
+    - Upgraded to support Java 9/10
 * v0.2
 	- New extended API for easy Nyx collections traversal and modifications (foreach, mapTo, filter).
 	- Asynchronous data exchange with off-heap storage for better throughput. 
