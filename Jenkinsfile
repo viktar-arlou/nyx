@@ -23,8 +23,10 @@ pipeline {
         stage('Build') {
             steps {
                 checkout scm
-                echo "Building branch: ${ref}"
-                echo "Commit SHA: ${commit_sha}"
+                // Debug: Print all environment variables to verify injection
+                sh 'env | sort'
+                echo "Building branch: ${env.ref ?: 'unknown'}"
+                echo "Commit SHA: ${env.commit_sha ?: 'unknown'}"
                 withMaven(
                     maven: 'Maven 3.9.x', // Name of Maven installation in Global Tool Configuration
                     jdk: 'JDK 21'     // Name of JDK installation in Global Tool Configuration
