@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+    }
     triggers {
         GenericTrigger(
             genericVariables: [
@@ -22,7 +25,12 @@ pipeline {
                 checkout scm
                 echo "Building branch: ${ref}"
                 echo "Commit SHA: ${commit_sha}"
-                sh 'echo "Performing build steps..."'
+                withMaven(
+                    maven: 'Maven 3.9.x', // Name of Maven installation in Global Tool Configuration
+                    jdk: 'JDK 21'     // Name of JDK installation in Global Tool Configuration
+                ) {
+                    sh 'mvn clean install'
+                }
                 // Add your build steps here, e.g., sh 'make', sh 'npm install', etc.
             }
         }
