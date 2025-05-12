@@ -27,13 +27,10 @@ pipeline {
                 sh 'env | sort'
                 echo "Building branch: ${env.ref ?: 'unknown'}"
                 echo "Commit SHA: ${env.commit_sha ?: 'unknown'}"
-                withMaven(
-                    maven: 'Maven 3.9.x', // Name of Maven installation in Global Tool Configuration
-                    jdk: 'JDK 21'     // Name of JDK installation in Global Tool Configuration
-                ) {
-                    sh 'mvn clean install'
-                }
-                // Add your build steps here, e.g., sh 'make', sh 'npm install', etc.
+                // Optional: Use workspace for local repository
+                sh './mvnw install -Dmaven.repo.local=${WORKSPACE}/.m2/repository'
+                sh 'echo "Performing build steps..."'
+                // Add additional build steps here if needed
             }
         }
     }
