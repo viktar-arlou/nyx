@@ -43,4 +43,3 @@ Nyx collections can be used with Java 9/10 platform.
 ### Contact
 
 * Viktar Arlou (varlou@gmail.com)
-* 
