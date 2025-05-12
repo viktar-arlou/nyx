@@ -1,6 +1,6 @@
 // Pipeline parameters for flexibility
 parameters {
-    string(name: 'BRANCH', defaultValue: 'main', description: 'Branch to build')
+    string(name: 'BRANCH', defaultValue: 'master', description: 'Branch to build')
 }
 
 // Environment variables for Gitea configuration
